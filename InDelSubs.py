@@ -184,30 +184,51 @@ class InDelSubs(object):
 		CTS5_query = self.query_seq[CTS5_start_adj:CTS5_end_adj+1]
 		CTS3_query = self.query_seq[CTS3_start_adj:CTS3_end_adj+1]
 
-		#Check for 5'CTS mutations:
+		cts5_muts = [i for i in range(len(CTS5_query)) if CTS5_query[i] not in [seq[CTS5_start_adj:CTS5_end_adj+1][i]
+			for seq in self.profile_seqs] and not ((i in self.nkip) or (i in self.nkdp))]
+
+		cts3_muts = [i+CTS3_start_adj for i in range(len(CTS3_query)) if CTS3_query[i] not in [seq[CTS3_start_adj:CTS3_end_adj+1][i] 
+			for seq in self.profile_seqs] and not ((i+CTS3_start_adj in self.nkip) or (i+CTS3_start_adj in self.nkdp))]
+
+		cts5_positions = []
+		for k, g in groupby(enumerate(cts5_muts), lambda ix: ix[0] - ix[1]):
+			cts5_positions.append(list(map(itemgetter(1), g)))
+
+		cts3_positions = []
+		for k, g in groupby(enumerate(cts3_muts), lambda ix: ix[0] - ix[1]):
+			cts3_positions.append(list(map(itemgetter(1), g)))
+
 		flags = []
-		for i in range(len(CTS5_query)):
-			if (i in self.nkip) or (i in self.nkdp):
-				continue
-			profile_nucs = [seq[CTS5_start_adj:CTS5_end_adj+1][i] for seq in self.profile_seqs]
-			if CTS5_query[i] not in profile_nucs:
-				profile_sub = (i - len([k for k in self.nkip if k < i]))+1
-				query_sub = (i - len([k for k in self.nkdp if k < i]))+1
-				mut = tuple(("5'CTS-mut", profile_sub, query_sub, CTS5_query[i], 1))
-				flags.append(mut)
+
+		#Check for 5'CTS mutations:
+		for pos in cts5_positions:
+			subs = self.query_seq[pos[0]:pos[len(pos)-1]+1]
+			profile_sub = [(j-len([i for i in self.nkip if i < j]))+1 for j in pos]
+			query_sub = [(j-len([i for i in self.nkdp if i < j]))+1 for j in pos]
+
+			if len(pos) > 1:
+				profile_pos = str(profile_sub[0])+".."+str(profile_sub[len(profile_sub)-1])
+				query_pos = str(query_sub[0])+".."+str(query_sub[len(query_sub)-1])
+			else:
+				profile_pos = str(profile_sub[0])
+				query_pos = str(query_sub[0])
+
+			flags.append(tuple(("5'CTS-mut", profile_pos, query_pos, subs, len(pos))))
 
 		#Check for 3'CTS mutations:
-		flags = []
-		for i in range(len(CTS3_query)):
-			j = i+CTS3_start_adj
-			if (j in self.nkip) or (j in self.nkdp):
-				continue
-			profile_nucs = [seq[CTS3_start_adj:CTS3_end_adj+1][i] for seq in self.profile_seqs]
-			if CTS3_query[i] not in profile_nucs:
-				profile_sub = (j - len([k for k in self.nkip if k < j]))+1
-				query_sub = (j - len([k for k in self.nkdp if k < j]))+1
-				mut = tuple(("3'CTS-mut", profile_sub, query_sub, CTS3_query[i], 1))
-				flags.append(mut)
+		for pos in cts3_positions:
+			subs = self.query_seq[pos[0]:pos[len(pos)-1]+1]
+			profile_sub = [(j-len([i for i in self.nkip if i < j]))+1 for j in pos]
+			query_sub = [(j-len([i for i in self.nkdp if i < j]))+1 for j in pos]
+
+			if len(pos) > 1:
+				profile_pos = str(profile_sub[0])+".."+str(profile_sub[len(profile_sub)-1])
+				query_pos = str(query_sub[0])+".."+str(query_sub[len(query_sub)-1])
+			else:
+				profile_pos = str(profile_sub[0])
+				query_pos = str(query_sub[0])
+
+			flags.append(tuple(("3'CTS-mut", profile_pos, query_pos, subs, len(pos))))
 
 		return flags
 
