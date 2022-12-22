@@ -10,9 +10,11 @@ from collections import Counter
 
 class InDelSubs(object):
 
-	# This object expects that profile alignment in fasta, computed in a separate module,
-	# the boundary file as a pandas dataframe with columns 'Region', 'Start',
-	# and 'End', and the lookup table as a pandas dataframe as 'Flag', 'Start', 'End'
+	# This object just expects the profile alignment in fasta, computed in a separate module.
+	# This alignment is not assumed to be have preserved length of the original profile because
+	# it need to identify potential insertions.  Hence, the primary purpose of this init object
+	# is to grab ahold of "non-keep-length" insertions and deletion positions for later computing
+	# all mutations.
 	def __init__(self, alignment):
 
 		sequences = []

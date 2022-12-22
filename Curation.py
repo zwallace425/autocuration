@@ -7,7 +7,7 @@ import os
 import pandas as pd
 import numpy as np
 import subprocess
-from InDelSubs import InDelSubs as ids
+from InDelSubs import InDelSubs
 
 
 class Curation(object):
@@ -29,7 +29,7 @@ class Curation(object):
 		boundary_df = Curation.parse_boundaryFile(strainName, boundaryFile)
 		lookup_df = Curation.parse_lookupTable(strainName, lookupTable)
 
-		muts = ids(alignment)
+		muts = InDelSubs(alignment)
 		
 		# Get the Flags
 		del_flags =	muts.deletion_flags(boundary_df, lookup_df)
@@ -39,15 +39,45 @@ class Curation(object):
 		flags = del_flags + ins_flags + sub_flags
 
 		self.flags = flags
+		self.del_flags = del_flags
+		self.ins_flags = ins_flags
+		self.sub_flags = sub_flags
 
 
-	# Return a table with the curation information about the sequence, otherwise return 'NO FLAGS'
+	# Return a table with all the curation information about the sequence, otherwise return 'NO FLAGS'
 	def curation_table(self):
 
 		if self.flags == []:
 			return("NO FLAGS")
 		else:
 			df = pd.DataFrame(self.flags, columns = ['Flag', 'Profile Position', 'Query Position', 'Variant', 'Length'])
+			return(df)
+
+	# Return just a table of the deletion flags, if any
+	def deletion_flags(self):
+
+		if self.del_flags == []:
+			return("NO DELETION FLAGS")
+		else:
+			df = pd.DataFrame(self.del_flags, columns = ['Flag', 'Profile Position', 'Query Position', 'Variant', 'Length'])
+			return(df)
+
+	# Return just a table of the insertion flags, if any
+	def insertion_flags(self):
+
+		if self.ins_flags == []:
+			return("NO INSERTION FLAGS")
+		else:
+			df = pd.DataFrame(self.ins_flags, columns = ['Flag', 'Profile Position', 'Query Position', 'Variant', 'Length'])
+			return(df)
+
+	# Return just a table of the substitution flags, if any
+	def substitution_flags(self):
+
+		if self.sub_flags == []:
+			return("NO SUBSTITUTION FLAGS")
+		else:
+			df = pd.DataFrame(self.sub_flags, columns = ['Flag', 'Profile Position', 'Query Position', 'Variant', 'Length'])
 			return(df)
 		
 
