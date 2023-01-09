@@ -7,6 +7,7 @@ import os
 import pandas as pd
 import numpy as np
 import subprocess
+from Blast import Blast
 from InDelSubs import InDelSubs
 
 
@@ -15,14 +16,22 @@ class Curation(object):
 	# This object expecta a query nucleotide sequence in fasta and a strain name denoted as [Speicies]_[Segment #]_[Subtype]
 	# at minimum.  The object can also take in a specified boundary file, lookup table file, and a directory name specifying
 	# the location of all the profile fasta files.
-	def __init__(self, query, strainName, boundaryFile = "profiles/profile_boundaries.txt", lookupTable = "profiles/profile_lookupTable.txt", profile_dir = "profiles"):
-		
-		# Get the appropriate profile for the profile_dir based on the strain name
-		profile = [filename for filename in os.listdir(profile_dir) if filename.startswith(strainName)][0]
+	def __init__(self, query, strainName = None, boundaryFile = "profiles/Flu_profile_boundaries_20181012.txt", 
+		lookupTable = "profiles/Flu_profile_lookupTable_20181203.txt", profile_dir = "profiles", output_dir = "outputs"):
+
+		# Only BLAST if strain name not passed to init
+		if strainName:
+			# Get the appropriate profile for the profile_dir based on the strain name
+			profile = [filename for filename in os.listdir(profile_dir) if filename.startswith(strainName)][0]
+		else:
+			# BLAST query to determine the appropriate profile and strain name
+			b = Blast(query)
+			profile = b.get_profile()
+			strainName = b.get_strain()
 
 		# Compute the alignment of the query to the profile using MAFFT
-		alignment = profile_dir+"/profile_aligned.fasta"
-		cmd = "mafft --add "+query+" --maxiterate 1000 "+profile_dir+"/"+profile+" > "+alignment
+		alignment = profile_dir+"/precomputed_alignment.fasta"
+		cmd = "mafft --add "+query+" --globalpair --maxiterate 1000 "+profile_dir+"/"+profile+" > "+alignment
 		subprocess.call(cmd, shell = True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
 
 		# Parse boundary and lookup table text files
@@ -38,10 +47,15 @@ class Curation(object):
 
 		flags = del_flags + ins_flags + sub_flags
 
+		#if len(ins_flags) > 0:
+			# Save the pre-computed alignment to a output_dir folder only if there were no insertions
+
 		self.flags = flags
 		self.del_flags = del_flags
 		self.ins_flags = ins_flags
 		self.sub_flags = sub_flags
+		self.profile = profile
+		self.strainName = strainName
 
 
 	# Return a table with all the curation information about the sequence, otherwise return 'NO FLAGS'
@@ -52,6 +66,11 @@ class Curation(object):
 		else:
 			df = pd.DataFrame(self.flags, columns = ['Flag', 'Profile Position', 'Query Position', 'Variant', 'Length'])
 			return(df)
+
+	# Update Dr. Macken's Table 6 for curation bookeeping
+	def update_table6(self, table6 = 'outputs/Table6_Jan2019Release.txt'):
+
+		print("Code to update table6")
 
 	# Return just a table of the deletion flags, if any
 	def deletion_flags(self):
@@ -106,7 +125,7 @@ class Curation(object):
 
 		return(boundary_df)
 
-	# Meant to parsing the lookup table so that we can use information for a specific strain.
+	# Meant to parse the lookup table so that we can use information for a specific strain.
 	@staticmethod
 	def parse_lookupTable(strainName, lookupTable):
 

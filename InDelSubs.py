@@ -12,7 +12,7 @@ class InDelSubs(object):
 
 	# This object just expects the profile alignment in fasta, computed in a separate module.
 	# This alignment is not assumed to be have preserved length of the original profile because
-	# it need to identify potential insertions.  Hence, the primary purpose of this init object
+	# it needs to identify potential insertions.  Hence, the primary purpose of this init object
 	# is to grab ahold of "non-keep-length" insertions and deletion positions for later computing
 	# all mutations.
 	def __init__(self, alignment):
@@ -61,7 +61,8 @@ class InDelSubs(object):
 		self.profile_seqs = profile_seqs
 
 
-	# Reports the flags triggered by deletions
+	# Reports the flags triggered by deletions. Requires the process boundary file and
+	# lookup table file.
 	def deletion_flags(self, boundary_df, lookup_df):
 
 		# Extract deletions not accepted in the profile alignment
@@ -110,7 +111,7 @@ class InDelSubs(object):
 
 		return flags
 
-	# Reports the flags triggered by insertions
+	# Reports the flags triggered by insertions. Requires the boundary file.
 	def insertion_flags(self, boundary_df):
 
 		profile_length = boundary_df['End'][4]
@@ -163,7 +164,7 @@ class InDelSubs(object):
 
 		return flags
 
-	# Reports the flags triggered by CTS substitutions
+	# Reports the flags triggered by CTS substitutions. Requires the boundary file
 	def substitution_flags(self, boundary_df):
 
 		CTS5 = boundary_df[(boundary_df['Region'] == 'CTS5')]
