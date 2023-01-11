@@ -28,6 +28,7 @@ class Curation(object):
 			b = Blast(query)
 			profile = b.get_profile()
 			strainName = b.get_strain()
+			print(strainName)
 
 		# Compute the alignment of the query to the profile using MAFFT
 		alignment = profile_dir+"/precomputed_alignment.fasta"
@@ -47,8 +48,8 @@ class Curation(object):
 
 		flags = del_flags + ins_flags + sub_flags
 
-		#if len(ins_flags) > 0:
-			# Save the pre-computed alignment to a output_dir folder only if there were no insertions
+		if len(ins_flags) == 0:
+			Curation.save_alignment(query, alignment, output_dir)
 
 		self.flags = flags
 		self.del_flags = del_flags
@@ -70,7 +71,20 @@ class Curation(object):
 	# Update Dr. Macken's Table 6 for curation bookeeping
 	def update_table6(self, table6 = 'outputs/Table6_Jan2019Release.txt'):
 
-		print("Code to update table6")
+		table6 = pd.read_csv(table6, sep = '\t')
+
+		# Check if flag returns something already in the table
+		if (self.flag[0] == "5'NCR-ext") or (self.flag[0] == "3'NCR-ext"):
+			table6_profile = table6[(table6['PROFILE_NAME'] == self.profile) & (table6['FLU_SUBTYPE'] == self.strainName) & 
+			(table6['AUTO_ALIGNMENT_ISSUE'] == self.flags[0])]
+
+			# Update table6 or add in entire new row
+
+		else:
+			table6_profile = table6[(table6['PROFILE_NAME'] == self.profile) & (table6['FLU_SUBTYPE'] == self.strainName) & 
+			(table6['AUTO_ALIGNMENT_ISSUE'] == self.flags[0]) & (table6['POS_PROFILE'] == self.flags[1])]
+
+			# Update table 6 or add in entire new row
 
 	# Return just a table of the deletion flags, if any
 	def deletion_flags(self):
@@ -149,3 +163,21 @@ class Curation(object):
 		lookup_df = pd.concat(strain_lookup, ignore_index = True)
 
 		return(lookup_df)
+
+	# Save the mafft alignment if there were no insertions
+	@staticmethod
+	def save_alignment(query, alignment, output_dir):
+
+		with open(query) as q:
+			acc = q.readline()
+
+		acc = acc.split(" ")[0].split(".")[0].split(">")[1].strip()
+		acc = acc.split("|")
+		acc = acc[len(acc)-1].strip()
+
+		with open(alignment, 'r') as file1:
+			with open(output_dir+"/"+acc+"_aligned.fasta", 'w') as file2:
+				for line in file1:
+					file2.write(line)
+
+

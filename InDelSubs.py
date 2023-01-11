@@ -81,33 +81,49 @@ class InDelSubs(object):
 			profile_del = [(j-len([i for i in self.nkip if i < j]))+1 for j in pos]
 			query_del = [(j-len([i for i in self.nkdp if i <= j]))+1 for j in pos]
 
-			region = boundary_df[(boundary_df['Start'] <= profile_del[0]) & (boundary_df['End'] >= profile_del[len(profile_del)-1])]
-			region = list(region['Region'])[0]
+			# This will get ALL regions for which the deletion gaps may be overlapping
+			regions = boundary_df[(boundary_df['Start'] <= profile_del[len(profile_del)-1]) & (boundary_df['End'] >= profile_del[0])]
+			regions = regions.to_dict('records')
+			
+			# Loop through all possible regions for which gaps may be overlapping
+			for reg in regions:
+				region = reg['Region']
+				
+				# Region start end with respect to profile
+				start_p = reg['Start']
+				end_p = reg['End']
+				
+				# Region start end with respect to query
+				start_q = start_p - len([i for i in self.nkdp if i <= start_p])+1
+				end_q = end_p - len([i for i in self.nkdp if i <= end_p])+1
 
-			if len(pos) > 1:
-				profile_pos = str(profile_del[0])+".."+str(profile_del[len(profile_del)-1])
-			else:
-				profile_pos = str(profile_del[0])
-			query_pos = str(query_del[0])+".."+str(query_del[0]+1)
+				region_dels_p = [i for i in profile_del if start_p <= i <= end_p]
+				region_dels_q = [i for i in query_del if start_q <= i <= end_q]
 
-			# Go through each of the possible flags
-			if (region == 'CTS5'):
-				flags.append(tuple(("5'CTS-del", profile_pos, query_pos, "del", len(pos))))
-			elif (region == 'CTS3'):
-				flags.append(tuple(("3'CTS-del", profile_pos, query_pos, "del", len(pos))))
-			elif (region == 'NCR5'):
-				if InDelSubs.check_lookup(lookup_df, "5'NCR-del", profile_del[0], profile_del[len(profile_del)-1]) == "FAIL":
-					flags.append(tuple(("5'NCR-del", profile_pos, query_pos, "del", len(pos))))
-			elif (region == 'NCR3'):
-				if InDelSubs.check_lookup(lookup_df, "3'NCR-del", profile_del[0], profile_del[len(profile_del)-1]) == "FAIL":
-					flags.append(tuple(("3'NCR-del", profile_pos, query_pos, "del", len(pos))))
-			elif (region == 'CDS'):
-				if (len(pos) % 3) == 0:
-					if InDelSubs.check_lookup(lookup_df, "CDS-3Xdel", profile_del[0], profile_del[len(profile_del)-1]) == "FAIL":
-						flags.append(tuple(("CDS-3Xdel", profile_pos, query_pos, "del", len(pos))))
+				if len(pos) > 1:
+					profile_pos = str(region_dels_p[0])+".."+str(region_dels_p[len(region_dels_p)-1])
 				else:
-					if InDelSubs.check_lookup(lookup_df, "CDS-del", profile_del[0], profile_del[len(profile_del)-1]) == "FAIL":
-						flags.append(tuple(("CDS-del", profile_pos, query_pos, "del", len(pos))))
+					profile_pos = str(region_dels_p[0])
+				query_pos = str(region_dels_q[0])+".."+str(region_dels_q[0]+1)
+
+				# Go through each of the possible flags
+				if (region == 'CTS5'):
+					flags.append(tuple(("5'CTS-del", profile_pos, query_pos, "del", len(region_dels_p))))
+				elif (region == 'CTS3'):
+					flags.append(tuple(("3'CTS-del", profile_pos, query_pos, "del", len(region_dels_p))))
+				elif (region == 'NCR5'):
+					if InDelSubs.check_lookup(lookup_df, "5'NCR-del", region_dels_p[0], region_dels_p[len(region_dels_p)-1]) == "FAIL":
+						flags.append(tuple(("5'NCR-del", profile_pos, query_pos, "del", len(region_dels_p))))
+				elif (region == 'NCR3'):
+					if InDelSubs.check_lookup(lookup_df, "3'NCR-del", region_dels_p[0], region_dels_p[len(region_dels_p)-1]) == "FAIL":
+						flags.append(tuple(("3'NCR-del", profile_pos, query_pos, "del", len(region_dels_p))))
+				elif (region == 'CDS'):
+					if (len(pos) % 3) == 0:
+						if InDelSubs.check_lookup(lookup_df, "CDS-3Xdel", region_dels_p[0], region_dels_p[len(region_dels_p)-1]) == "FAIL":
+							flags.append(tuple(("CDS-3Xdel", profile_pos, query_pos, "del", len(region_dels_p))))
+					else:
+						if InDelSubs.check_lookup(lookup_df, "CDS-del", region_dels_p[0], region_dels_p[len(region_dels_p)-1]) == "FAIL":
+							flags.append(tuple(("CDS-del", profile_pos, query_pos, "del", len(region_dels_p))))
 
 		return flags
 
@@ -137,14 +153,15 @@ class InDelSubs(object):
 				query_pos = str(query_ins[0])
 			profile_pos = str(profile_ins[0])+".."+str(profile_ins[0]+1)
 
-			if (profile_ins[0] == 0) or (profile_ins[0] == 1) :
+			if (profile_ins[0] == 0):
 				flags.append(tuple(("5'NCR-ext", profile_pos, query_pos, ins_muts, len(pos))))
 				continue
-			if (profile_ins[0] == profile_length) or (profile_ins[0] == profile_length-1):
+			if (profile_ins[0] == profile_length):
+				profile_pos = str(profile_ins[0])+".."
 				flags.append(tuple(("3'NCR-ext", profile_pos, query_pos, ins_muts, len(pos))))
 				continue
 
-			region = boundary_df[(boundary_df['Start'] <= profile_ins[0]) & (boundary_df['End'] >= profile_ins[0])]
+			region = boundary_df[(boundary_df['Start'] <= profile_ins[len(profile_ins)-1]) & (boundary_df['End'] >= profile_ins[0])]
 			region = list(region['Region'])[0]
 
 			# Go through each of the possible flags
@@ -164,7 +181,7 @@ class InDelSubs(object):
 
 		return flags
 
-	# Reports the flags triggered by CTS substitutions. Requires the boundary file
+	# Reports the flags triggered by CTS substitutions. Requires the boundary file.
 	def substitution_flags(self, boundary_df):
 
 		CTS5 = boundary_df[(boundary_df['Region'] == 'CTS5')]
