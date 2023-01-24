@@ -19,6 +19,9 @@ class Curation(object):
 	def __init__(self, query, strainName = None, boundaryFile = "profiles/Flu_profile_boundaries_20181012.txt", 
 		lookupTable = "profiles/Flu_profile_lookupTable_20181203.txt", profile_dir = "profiles", output_dir = "outputs"):
 
+		# Grab accession number for query sequence fasta
+		accession = Curation.get_accession(query)
+
 		# Only BLAST if strain name not passed to init
 		if strainName:
 			# Get the appropriate profile for the profile_dir based on the strain name
@@ -48,8 +51,9 @@ class Curation(object):
 
 		flags = del_flags + ins_flags + sub_flags
 
+		# Only save alignment if no insertion flags
 		if len(ins_flags) == 0:
-			Curation.save_alignment(query, alignment, output_dir)
+			Curation.save_alignment(accession, alignment, output_dir)
 
 		self.flags = flags
 		self.del_flags = del_flags
@@ -57,6 +61,7 @@ class Curation(object):
 		self.sub_flags = sub_flags
 		self.profile = profile
 		self.strainName = strainName
+		self.accession = accession
 
 
 	# Return a table with all the curation information about the sequence, otherwise return 'NO FLAGS'
@@ -69,22 +74,77 @@ class Curation(object):
 			return(df)
 
 	# Update Dr. Macken's Table 6 for curation bookeeping
-	def update_table6(self, table6 = 'outputs/Table6_Jan2019Release.txt'):
+	def update_table6(self, Table6 = 'outputs/Table6_Jan2019Release.txt', ):
 
-		table6 = pd.read_csv(table6, sep = '\t')
+		table6 = pd.read_csv(Table6, sep = '\t')
 
-		# Check if flag returns something already in the table
-		if (self.flag[0] == "5'NCR-ext") or (self.flag[0] == "3'NCR-ext"):
-			table6_profile = table6[(table6['PROFILE_NAME'] == self.profile) & (table6['FLU_SUBTYPE'] == self.strainName) & 
-			(table6['AUTO_ALIGNMENT_ISSUE'] == self.flags[0])]
+		# If no flags, abort function and return table 6 back
+		if self.flags == []:
+			return
 
-			# Update table6 or add in entire new row
+		# Loop through all detected flags
+		for flag in self.flags:
+			if (flag[0] == "5'NCR-ext") or (flag[0] == "3'NCR-ext"):
+				table6_profile = table6[(table6['PROFILE_NAME'] == self.profile) & (table6['FLU_SUBTYPE'] == self.strainName) & 
+				(table6['AUTO_ALIGNMENT_ISSUE'] == flag[0])]
+				# Check if flag returns something already in the table
+				if not table6_profile.empty:
+					index = table6_profile.index[0]
+					acc_list = set(str(table6['ACCESSION_LIST'][index]).split(","))
+					if self.accession not in acc_list:
+						acc_list.add(self.accession)
+						acc_list = list(acc_list)
+						acc_list.sort()
+						acc_list = ",".join(acc_list)
 
-		else:
-			table6_profile = table6[(table6['PROFILE_NAME'] == self.profile) & (table6['FLU_SUBTYPE'] == self.strainName) & 
-			(table6['AUTO_ALIGNMENT_ISSUE'] == self.flags[0]) & (table6['POS_PROFILE'] == self.flags[1])]
+						table6.at[index, 'STATUS'] = str("Updated")
+						table6.at[index, 'ACCESSION_COUNT'] = int(table6['ACCESSION_COUNT'][index])+1
+						table6.at[index, 'ACCESSION_LIST'] = str(acc_list)
 
-			# Update table 6 or add in entire new row
+				else:
+					table6_profile = pd.DataFrame({'PROFILE_NAME': [self.profile], 'STATUS': ["New"], 'FLU_SUBTYPE': [self.strainName], 
+						'AUTO_ALIGNMENT_ISSUE': [flag[0]], 'POS_PROFILE': [""], 'MUTATION_SUM'	: [""], 'ACCESSION_COUNT': [1],
+						'ACCESSION_LIST': [self.accession]})
+					table6 = pd.concat([table6, table6_profile], axis = 0)
+
+			else:
+				table6_profile = table6[(table6['PROFILE_NAME'] == self.profile) & (table6['FLU_SUBTYPE'] == self.strainName) & 
+				(table6['AUTO_ALIGNMENT_ISSUE'] == flag[0]) & (table6['POS_PROFILE'] == flag[1])]
+				if not table6_profile.empty:
+					index = table6_profile.index[0]
+					acc_list = set(str(table6['ACCESSION_LIST'][index]).split(","))
+					if self.accession not in acc_list:
+						acc_list.add(self.accession)
+						acc_list = list(acc_list)
+						acc_list.sort()
+						acc_list = ",".join(acc_list)
+
+						table6.at[index, 'STATUS'] = str("Updated")
+						table6.at[index, 'ACCESSION_COUNT'] = int(table6['ACCESSION_COUNT'][index])+1
+						table6.at[index, 'ACCESSION_LIST'] = str(acc_list)
+
+						if flag[0] == "5'CTS-mut" or flag[0] == "3'CTS-mut":
+							mut_sum = str(table6['MUTATION_SUM'][index])
+							mut_sum = dict(item.split(":") for item in mut_sum.split(","))
+							if mut_sum.get(flag[3]):
+								mut_sum[flag[3]] = str(int(mut_sum[flag[3]])+1)
+							else:
+								mut_sum[flag[3]] = str(1)
+							mut_sum = ",".join([key+':'+val for key, val in mut_sum.items()])
+							table6.at[index, 'MUTATION_SUM'] = mut_sum
+				
+				else:
+					mut_sum = ""
+					if flag[0] == "5'CTS-mut" or flag[0] == "3'CTS-mut":
+						mut_sum = flag[3]+':'+str(1)
+					table6_profile = pd.DataFrame({'PROFILE_NAME': [self.profile], 'STATUS': ["New"], 'FLU_SUBTYPE': [self.strainName], 
+						'AUTO_ALIGNMENT_ISSUE': [flag[0]], 'POS_PROFILE': [flag[1]], 'MUTATION_SUM'	: [mut_sum], 'ACCESSION_COUNT': [1],
+						'ACCESSION_LIST': [self.accession]})
+					table6 = pd.concat([table6, table6_profile], axis = 0)
+
+		table6 = table6.sort_values(by = ['PROFILE_NAME', 'ACCESSION_COUNT'], ascending = [True, False]).reset_index(drop=True)
+		table6.to_csv(Table6, sep = '\t', index = False)
+
 
 	# Return just a table of the deletion flags, if any
 	def deletion_flags(self):
@@ -112,7 +172,20 @@ class Curation(object):
 		else:
 			df = pd.DataFrame(self.sub_flags, columns = ['Flag', 'Profile Position', 'Query Position', 'Variant', 'Length'])
 			return(df)
-		
+	
+
+	# Meant for grabbing accession number from the query sequence
+	@staticmethod
+	def get_accession(query):
+
+		with open(query) as q:
+			accession = q.readline()
+
+		accession = accession.split(" ")[0].split(".")[0].split(">")[1].strip()
+		accession = accession.split("|")
+		accession = accession[len(accession)-1].strip()
+
+		return(accession)
 
 	# Meant for parsing the boundary file to know the CTS, NCR, and CDS start and end regions of the profile
 	@staticmethod
@@ -166,17 +239,10 @@ class Curation(object):
 
 	# Save the mafft alignment if there were no insertions
 	@staticmethod
-	def save_alignment(query, alignment, output_dir):
-
-		with open(query) as q:
-			acc = q.readline()
-
-		acc = acc.split(" ")[0].split(".")[0].split(">")[1].strip()
-		acc = acc.split("|")
-		acc = acc[len(acc)-1].strip()
+	def save_alignment(query_acc, alignment, output_dir):
 
 		with open(alignment, 'r') as file1:
-			with open(output_dir+"/"+acc+"_aligned.fasta", 'w') as file2:
+			with open(output_dir+"/"+query_acc+"_aligned.fasta", 'w') as file2:
 				for line in file1:
 					file2.write(line)
 

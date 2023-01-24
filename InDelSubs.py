@@ -142,7 +142,7 @@ class InDelSubs(object):
 		flags = []
 		for pos in positions:
 
-			ins_muts = self.query_seq[pos[0]:pos[len(pos)-1]+1]
+			ins_muts = self.query_seq[pos[0]:pos[len(pos)-1]+1].upper()
 
 			profile_ins = [(j-len([i for i in self.nkip if i <= j]))+1 for j in pos]
 			query_ins = [(j-len([i for i in self.nkdp if i < j]))+1 for j in pos]
@@ -222,7 +222,7 @@ class InDelSubs(object):
 
 		#Check for 5'CTS mutations:
 		for pos in cts5_positions:
-			subs = self.query_seq[pos[0]:pos[len(pos)-1]+1]
+			subs = self.query_seq[pos[0]:pos[len(pos)-1]+1].upper()
 			profile_sub = [(j-len([i for i in self.nkip if i < j]))+1 for j in pos]
 			query_sub = [(j-len([i for i in self.nkdp if i < j]))+1 for j in pos]
 
@@ -237,7 +237,7 @@ class InDelSubs(object):
 
 		#Check for 3'CTS mutations:
 		for pos in cts3_positions:
-			subs = self.query_seq[pos[0]:pos[len(pos)-1]+1]
+			subs = self.query_seq[pos[0]:pos[len(pos)-1]+1].upper()
 			profile_sub = [(j-len([i for i in self.nkip if i < j]))+1 for j in pos]
 			query_sub = [(j-len([i for i in self.nkdp if i < j]))+1 for j in pos]
 
