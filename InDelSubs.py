@@ -17,6 +17,7 @@ class InDelSubs(object):
 	# all mutations.
 	def __init__(self, alignment):
 
+		# Get all the sequences from the alignment
 		sequences = []
 		for seq_record in SeqIO.parse(alignment, 'fasta'):
 			seq = str(seq_record.seq)
@@ -60,9 +61,8 @@ class InDelSubs(object):
 		self.query_seq = query_seq
 		self.profile_seqs = profile_seqs
 
-
-	# Reports the flags triggered by deletions. Requires the process boundary file and
-	# lookup table file.
+	# Reports the flags triggered by deletions. Requires the processed boundary file and
+	# lookup table file as pandas dataframes.
 	def deletion_flags(self, boundary_df, lookup_df):
 
 		# Extract deletions not accepted in the profile alignment
@@ -112,22 +112,22 @@ class InDelSubs(object):
 				elif (region == 'CTS3'):
 					flags.append(tuple(("3'CTS-del", profile_pos, query_pos, "del", len(region_dels_p))))
 				elif (region == 'NCR5'):
-					if InDelSubs.check_lookup(lookup_df, "5'NCR-del", region_dels_p[0], region_dels_p[len(region_dels_p)-1]) == "FAIL":
+					if self.check_lookup(lookup_df, "5'NCR-del", region_dels_p[0], region_dels_p[len(region_dels_p)-1]) == "FAIL":
 						flags.append(tuple(("5'NCR-del", profile_pos, query_pos, "del", len(region_dels_p))))
 				elif (region == 'NCR3'):
-					if InDelSubs.check_lookup(lookup_df, "3'NCR-del", region_dels_p[0], region_dels_p[len(region_dels_p)-1]) == "FAIL":
+					if self.check_lookup(lookup_df, "3'NCR-del", region_dels_p[0], region_dels_p[len(region_dels_p)-1]) == "FAIL":
 						flags.append(tuple(("3'NCR-del", profile_pos, query_pos, "del", len(region_dels_p))))
 				elif (region == 'CDS'):
 					if (len(pos) % 3) == 0:
-						if InDelSubs.check_lookup(lookup_df, "CDS-3Xdel", region_dels_p[0], region_dels_p[len(region_dels_p)-1]) == "FAIL":
+						if self.check_lookup(lookup_df, "CDS-3Xdel", region_dels_p[0], region_dels_p[len(region_dels_p)-1]) == "FAIL":
 							flags.append(tuple(("CDS-3Xdel", profile_pos, query_pos, "del", len(region_dels_p))))
 					else:
-						if InDelSubs.check_lookup(lookup_df, "CDS-del", region_dels_p[0], region_dels_p[len(region_dels_p)-1]) == "FAIL":
+						if self.check_lookup(lookup_df, "CDS-del", region_dels_p[0], region_dels_p[len(region_dels_p)-1]) == "FAIL":
 							flags.append(tuple(("CDS-del", profile_pos, query_pos, "del", len(region_dels_p))))
 
 		return flags
 
-	# Reports the flags triggered by insertions. Requires the boundary file.
+	# Reports the flags triggered by insertions. Requires the boundary file as pandas dataframe.
 	def insertion_flags(self, boundary_df):
 
 		profile_length = boundary_df['End'][4]
@@ -181,7 +181,7 @@ class InDelSubs(object):
 
 		return flags
 
-	# Reports the flags triggered by CTS substitutions. Requires the boundary file.
+	# Reports the flags triggered by CTS substitutions. Requires the boundary file as pandas dataframe.
 	def substitution_flags(self, boundary_df):
 
 		CTS5 = boundary_df[(boundary_df['Region'] == 'CTS5')]
@@ -223,6 +223,9 @@ class InDelSubs(object):
 		#Check for 5'CTS mutations:
 		for pos in cts5_positions:
 			subs = self.query_seq[pos[0]:pos[len(pos)-1]+1].upper()
+			# Check if the current substituions are just N characters, continue loop if so and do not flag
+			if len(set(list(subs))) == 1 and list(set(list(subs)))[0] == 'N':
+				continue
 			profile_sub = [(j-len([i for i in self.nkip if i < j]))+1 for j in pos]
 			query_sub = [(j-len([i for i in self.nkdp if i < j]))+1 for j in pos]
 
@@ -238,6 +241,8 @@ class InDelSubs(object):
 		#Check for 3'CTS mutations:
 		for pos in cts3_positions:
 			subs = self.query_seq[pos[0]:pos[len(pos)-1]+1].upper()
+			if len(set(list(subs))) == 1 and list(set(list(subs)))[0] == 'N':
+				continue
 			profile_sub = [(j-len([i for i in self.nkip if i < j]))+1 for j in pos]
 			query_sub = [(j-len([i for i in self.nkdp if i < j]))+1 for j in pos]
 
@@ -252,7 +257,6 @@ class InDelSubs(object):
 
 		return flags
 
-
 	# Check the lookup table to determine if the flag gets accepted.
 	@staticmethod
 	def check_lookup(lookup_df, flag, start, end):
@@ -263,10 +267,3 @@ class InDelSubs(object):
 			return("PASS")
 		else:
 			return("FAIL")
-
-
-
-
-
-
-

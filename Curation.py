@@ -7,20 +7,24 @@ import os
 import pandas as pd
 import numpy as np
 import subprocess
+from Bio import SeqIO
 from Blast import Blast
 from InDelSubs import InDelSubs
+from MolSeq import MolSeq
 
 
 class Curation(object):
 
-	# This object expecta a query nucleotide sequence in fasta and a strain name denoted as [Speicies]_[Segment #]_[Subtype]
-	# at minimum.  The object can also take in a specified boundary file, lookup table file, and a directory name specifying
-	# the location of all the profile fasta files.
+	# This object expects a single query nucleotide sequence in fasta at minimum. Optionally, it can also take a 
+	# strain name denoted as [Speicies]_[Segment #]_[Subtype].  The object can also take in a specified boundary 
+	# file, lookup table file, and a directory name specifying the location of all the profile fasta files.  If
+	# those required files are not inputted as arguments, the object navigates to the default location of these
+	# files.
 	def __init__(self, query, strainName = None, boundaryFile = "profiles/Flu_profile_boundaries_20181012.txt", 
 		lookupTable = "profiles/Flu_profile_lookupTable_20181203.txt", profile_dir = "profiles", output_dir = "outputs"):
 
-		# Grab accession number for query sequence fasta
-		accession = Curation.get_accession(query)
+		# Grab accession number and nucleotide sequence string for query sequence in the fasta file
+		accession, sequence = self.get_acc_and_seq(query)
 
 		# Only BLAST if strain name not passed to init
 		if strainName:
@@ -31,7 +35,6 @@ class Curation(object):
 			b = Blast(query)
 			profile = b.get_profile()
 			strainName = b.get_strain()
-			print(strainName)
 
 		# Compute the alignment of the query to the profile using MAFFT
 		alignment = profile_dir+"/precomputed_alignment.fasta"
@@ -39,8 +42,8 @@ class Curation(object):
 		subprocess.call(cmd, shell = True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
 
 		# Parse boundary and lookup table text files
-		boundary_df = Curation.parse_boundaryFile(strainName, boundaryFile)
-		lookup_df = Curation.parse_lookupTable(strainName, lookupTable)
+		boundary_df = self.parse_boundaryFile(strainName, boundaryFile)
+		lookup_df = self.parse_lookupTable(strainName, lookupTable)
 
 		muts = InDelSubs(alignment)
 		
@@ -51,27 +54,43 @@ class Curation(object):
 
 		flags = del_flags + ins_flags + sub_flags
 
-		# Only save alignment if no insertion flags
-		if len(ins_flags) == 0:
-			Curation.save_alignment(accession, alignment, output_dir)
+		# Determine the ambiguity flags, if any
+		ambig_flags = []
+		molseq = MolSeq(accession, sequence)
+		if molseq.get_n_content() > 0.005:
+			ambig_flags.append("Excess-N")
+		if molseq.get_ambig_content() > 0.005:
+			ambig_flags.append("Excess-Ambig")
+
+		# Only save alignment if no insertion flags and no ambiguity
+		if len(ins_flags) == 0 and len(ambig_flags) == 0:
+			self.save_alignment(accession, alignment, output_dir)
 
 		self.flags = flags
 		self.del_flags = del_flags
 		self.ins_flags = ins_flags
 		self.sub_flags = sub_flags
+		self.ambig_flags = ambig_flags
 		self.profile = profile
 		self.strainName = strainName
 		self.accession = accession
 
-
-	# Return a table with all the curation information about the sequence, otherwise return 'NO FLAGS'
+	# Return a table with all the NCR/CDS curation information about the sequence, otherwise return 'NO FLAGS'
 	def curation_table(self):
 
 		if self.flags == []:
-			return("NO FLAGS")
+			return("NO MUTATION FLAGS")
 		else:
 			df = pd.DataFrame(self.flags, columns = ['Flag', 'Profile Position', 'Query Position', 'Variant', 'Length'])
-			return(df)
+			return("\n{}".format(df))
+
+	# Return a ambiguity flag(s) for input query sequence
+	def ambiguity_flags(self):
+
+		if self.ambig_flags == []:
+			return("NO AMBIGUITY FLAGS")
+		else:
+			return(self.ambig_flags)
 
 	# Update Dr. Macken's Table 6 for curation bookeeping
 	def update_table6(self, Table6 = 'outputs/Table6_Jan2019Release.txt', ):
@@ -153,7 +172,7 @@ class Curation(object):
 			return("NO DELETION FLAGS")
 		else:
 			df = pd.DataFrame(self.del_flags, columns = ['Flag', 'Profile Position', 'Query Position', 'Variant', 'Length'])
-			return(df)
+			return("\n{}".format(df))
 
 	# Return just a table of the insertion flags, if any
 	def insertion_flags(self):
@@ -162,7 +181,7 @@ class Curation(object):
 			return("NO INSERTION FLAGS")
 		else:
 			df = pd.DataFrame(self.ins_flags, columns = ['Flag', 'Profile Position', 'Query Position', 'Variant', 'Length'])
-			return(df)
+			return("\n{}".format(df))
 
 	# Return just a table of the substitution flags, if any
 	def substitution_flags(self):
@@ -171,21 +190,36 @@ class Curation(object):
 			return("NO SUBSTITUTION FLAGS")
 		else:
 			df = pd.DataFrame(self.sub_flags, columns = ['Flag', 'Profile Position', 'Query Position', 'Variant', 'Length'])
-			return(df)
+			return("\n{}".format(df))
+
+	# Return the file name of the profile
+	def get_profile(self):
+
+		return(self.profile)
 	
+	# Return the strain name of the virus denoted as [Speicies]_[Segment #]_[Subtype]
+	def get_strain(self):
 
-	# Meant for grabbing accession number from the query sequence
+		return(self.strainName)
+
+	# Return the accession number of the query sequence
+	def get_accession(self):
+
+		return(self.accession)
+
+	# Meant for grabbing accession number and nucleotide sequence string from the query sequence fasta file
 	@staticmethod
-	def get_accession(query):
-
-		with open(query) as q:
-			accession = q.readline()
-
-		accession = accession.split(" ")[0].split(".")[0].split(">")[1].strip()
+	def get_acc_and_seq(query):
+		
+		for seq_record in SeqIO.parse(query, 'fasta'):
+			accession = str(seq_record.id)
+			sequence = str(seq_record.seq).strip()
+		
+		accession = accession.split(" ")[0].split(".")[0].strip()
 		accession = accession.split("|")
 		accession = accession[len(accession)-1].strip()
 
-		return(accession)
+		return(accession, sequence)
 
 	# Meant for parsing the boundary file to know the CTS, NCR, and CDS start and end regions of the profile
 	@staticmethod
@@ -245,5 +279,3 @@ class Curation(object):
 			with open(output_dir+"/"+query_acc+"_aligned.fasta", 'w') as file2:
 				for line in file1:
 					file2.write(line)
-
-

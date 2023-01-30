@@ -24,7 +24,6 @@ class Blast(object):
 
 		self.profile = profile
 	
-
 	# Return the profile name mapping to the query sequence
 	def get_profile(self):
 		
