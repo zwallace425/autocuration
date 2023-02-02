@@ -22,7 +22,7 @@ from Bio.Blast import NCBIXML
 # lookup table, and boundary file
 class Curation(object):
 
-	# This object expects a single query nucleotide sequence in fasta at minimum. Optionally, it can also take a 
+	# This object expects a SINGLE QUERY nucleotide sequence in fasta at minimum. Optionally, it can also take a 
 	# strain name denoted as [Speicies]_[Segment #]_[Subtype].  The object can also take in a specified boundary 
 	# file, lookup table file, and a directory name specifying the location of all the profile fasta files.  If
 	# those required files are not inputted as arguments, the object navigates to the default location of these
