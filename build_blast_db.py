@@ -13,7 +13,7 @@ from Bio import SeqIO
 sequences = set()
 seq_dict = {}
 for file in os.listdir('profiles'):
-	if file.endswith('.afa') or file.endswith('.fasta'):
+	if file != "precomputed_alignment.fasta" and (file.endswith('.afa') or file.endswith('.fasta')):
 		profile_name = file
 		for seq_record in SeqIO.parse('profiles/'+file, 'fasta'):
 			seq = str(seq_record.seq)
@@ -33,6 +33,9 @@ for key in seq_dict.keys():
 	outfile.write(">" + key + "\n" + seq_dict[key] + "\n")
 
 outfile.close()
+
+makeblastdb_cmd = "./blast/makeblastdb -in blast/flu_profiles_db.fasta -dbtype nucl"
+os.system(makeblastdb_cmd)
 
 
 			
