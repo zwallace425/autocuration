@@ -6,6 +6,7 @@
 
 import os
 import sys
+import time
 import pandas as pd
 import numpy as np
 import argparse
@@ -41,6 +42,7 @@ class Curation(object):
 			# BLAST query to determine the appropriate profile and strain name
 			b = Blast(query)
 			profile = b.get_profile()
+			identity = b.get_identity()
 			strainName = b.get_strain()
 
 		# Compute the alignment of the query to the profile using MAFFT
@@ -68,9 +70,12 @@ class Curation(object):
 			ambig_flags.append("Excess-N")
 		if molseq.get_ambig_content() > 0.005:
 			ambig_flags.append("Excess-Ambig")
+		if identity < 0.5:
+			ambig_flags.append("Excess-Dist")
 
-		# Only save alignment if no insertion flags and no ambiguity
-		if len(ins_flags) == 0 and len(ambig_flags) == 0:
+
+		# Only save alignment if no insertion flags
+		if len(ins_flags) == 0:
 			self.save_alignment(accession, alignment, output_dir)
 
 		self.flags = flags
@@ -628,16 +633,25 @@ class Blast(object):
 		stdout, stderr = cmdline()
 
 		result_handle = open(blast_result)
-		profile = [blast_result.alignments[0].title for blast_result in NCBIXML.parse(result_handle)][0]
+		for result in NCBIXML.parse(result_handle):
+			profile = result.alignments[0].title
+			identity = float(result.alignments[0].hsps[0].identities)/float(result.alignments[0].hsps[0].align_length)
+			break
 
 		profile = profile.split("|")[3]
 
 		self.profile = profile
+		self.identity = identity
 	
 	# Return the profile name mapping to the query sequence
 	def get_profile(self):
 		
 		return(self.profile)
+
+	# Return the percent identity of the query blast result
+	def get_identity(self):
+
+		return(self.identity)
 
 	# Return the strain name of the query
 	def get_strain(self):
@@ -672,6 +686,7 @@ if __name__ == "__main__":
 		seq = str(seq_record.seq)
 		seq_fasta = MolSeq(seq_id, seq).to_fasta()
 		with open('query.fasta', 'w') as f:	f.write(seq_fasta)
+		start = time.time()
 		cur = Curation('query.fasta')
 		if not args.flag:
 			print("Accession:", cur.get_accession())
@@ -704,6 +719,10 @@ if __name__ == "__main__":
 			print("Subtype:", cur.get_strain())
 			print("Substitution Flags:", cur.substitution_flags())
 			print('\n')
+		end = time.time()
+		print("Compute time for sequence:", round(end - start, 3))
+		print('\n')
+
 
 
 

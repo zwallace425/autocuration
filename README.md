@@ -3,14 +3,14 @@
 This is a pipeline for curating Influenza genome sequences and designating artifact flags. The artifact
 flags are meant for alerting descrepancies that have been discovered in the genome sequence and triggering
 the need for correcting the sequencing.  The methods for discovering artifact flags in the seqeunce were
-developed by JCVI/BV-BRC in collaboration with Dr. Catherine Macken.
+developed by JCVI/BV-BRC in collaboration with Dr. Catherine Macken at the Unversity of Aukland.
 
 ## Pipeline Dependencies
 
 (1) To run the pipeline, python >=3.x is required
 
 (2) MAFFT is a requirement for this pipeline.  Please download MAFFT version 7.490 from 
-https://mafft.cbrc.jp/alignment/software/
+https://mafft.cbrc.jp/alignment/software/ and place in your absolute PATH
 
 (3) To install the necessary dependencies, run the following in command line after cloning the repo
 	
@@ -20,7 +20,7 @@ https://mafft.cbrc.jp/alignment/software/
 
 The prefered way to run the pipeline over the command line is with
 
-	python Autocuration.py --query [Influeza FASTA sequence(s)]
+	python Autocuration.py --query [Influenza FASTA sequence(s)]
 
 In running that command, the pipeline will output a curation report with designated artifact flags,
 if any exist.  Additionally, running the pipeline will automatically update Dr. Macken's 'Table 6',
@@ -29,9 +29,8 @@ That original table is found in the 'outputs' folder as Table6_Jan2019Release.tx
 with runs of the pipeline and left in the same folder.  
 
 Along with autocuration, as key component of this pipeline is saving a pre-computed alignment of the 
-inputted query sequence.  This MAFFT alignment will get saved ONLY IF the sequence passed the ambiguity 
-stage of curation and had no insertions. This pre-computed alignment is saved in 'outputs' as 
-'ACCESSION_aligned.fasta'.
+inputted query sequence.  This MAFFT alignment will get saved ONLY IF the sequence had no insertions. 
+This pre-computed alignment is saved in 'outputs' as 'ACCESSION_aligned.fasta'.
 
 ## Profile Alignments, Lookup Table, and Boundary File
 

@@ -34,6 +34,8 @@ class Curation(object):
 			# BLAST query to determine the appropriate profile and strain name
 			b = Blast(query)
 			profile = b.get_profile()
+			identity = b.get_identity()
+			print("identity", identity)
 			strainName = b.get_strain()
 
 		# Compute the alignment of the query to the profile using MAFFT
@@ -61,9 +63,12 @@ class Curation(object):
 			ambig_flags.append("Excess-N")
 		if molseq.get_ambig_content() > 0.005:
 			ambig_flags.append("Excess-Ambig")
+		if identity < 0.5:
+			ambig_flags.append("Excess-Dist")
 
-		# Only save alignment if no insertion flags and no ambiguity
-		if len(ins_flags) == 0 and len(ambig_flags) == 0:
+
+		# Only save alignment if no insertion flags
+		if len(ins_flags) == 0:
 			self.save_alignment(accession, alignment, output_dir)
 
 		self.flags = flags

@@ -18,16 +18,25 @@ class Blast(object):
 		stdout, stderr = cmdline()
 
 		result_handle = open(blast_result)
-		profile = [blast_result.alignments[0].title for blast_result in NCBIXML.parse(result_handle)][0]
+		for result in NCBIXML.parse(result_handle):
+			profile = result.alignments[0].title
+			identity = float(result.alignments[0].hsps[0].identities)/float(result.alignments[0].hsps[0].align_length)
+			break
 
 		profile = profile.split("|")[3]
 
 		self.profile = profile
+		self.identity = identity
 	
 	# Return the profile name mapping to the query sequence
 	def get_profile(self):
 		
 		return(self.profile)
+
+	# Return the percent identity of the query blast result
+	def get_identity(self):
+
+		return(self.identity)
 
 	# Return the strain name of the query
 	def get_strain(self):
