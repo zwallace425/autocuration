@@ -18,7 +18,7 @@ https://mafft.cbrc.jp/alignment/software/ and place in your absolute PATH
 
 ## Running the Pipeline and Generating Outputs
 
-The prefered way to run the pipeline over the command line is with
+After navigating the cloned directory, the prefered way to run the pipeline via the command line is with
 
 	python Autocuration.py --query [Influenza FASTA sequence(s)]
 
