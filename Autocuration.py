@@ -5,6 +5,7 @@
 # description of the algorithms and methods for making up this framework.
 
 import os
+import re
 import sys
 import time
 import pandas as pd
@@ -224,12 +225,14 @@ class Curation(object):
 	def get_acc_and_seq(query):
 		
 		for seq_record in SeqIO.parse(query, 'fasta'):
-			accession = str(seq_record.id)
+			metadata = str(seq_record.id)
 			sequence = str(seq_record.seq).strip()
 		
-		accession = accession.split(" ")[0].split(".")[0].strip()
-		accession = accession.split("|")
-		accession = accession[len(accession)-1].strip()
+		acc = re.split(r'[^a-zA-Z0-9\s\w]+', metadata)
+		if re.search(r'[a-zA-Z]+', acc[0]) and re.search(r'[0-9]+', acc[0]):
+			accession = acc[0]
+		else:
+			accession = acc[1]
 
 		return(accession, sequence)
 

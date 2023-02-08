@@ -4,6 +4,7 @@
 # lookup table, and boundary file
 
 import os
+import re
 import pandas as pd
 import numpy as np
 import subprocess
@@ -35,7 +36,6 @@ class Curation(object):
 			b = Blast(query)
 			profile = b.get_profile()
 			identity = b.get_identity()
-			print("identity", identity)
 			strainName = b.get_strain()
 
 		# Compute the alignment of the query to the profile using MAFFT
@@ -217,12 +217,14 @@ class Curation(object):
 	def get_acc_and_seq(query):
 		
 		for seq_record in SeqIO.parse(query, 'fasta'):
-			accession = str(seq_record.id)
+			metadata = str(seq_record.id)
 			sequence = str(seq_record.seq).strip()
 		
-		accession = accession.split(" ")[0].split(".")[0].strip()
-		accession = accession.split("|")
-		accession = accession[len(accession)-1].strip()
+		acc = re.split(r'[^a-zA-Z0-9\s\w]+', metadata)
+		if re.search(r'[a-zA-Z]+', acc[0]) and re.search(r'[0-9]+', acc[0]):
+			accession = acc[0]
+		else:
+			accession = acc[1]
 
 		return(accession, sequence)
 
