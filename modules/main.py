@@ -3,6 +3,7 @@
 # Optional argument: --flag [muts/ambig/ins/del/sub] (ie, the type of flags to return)
 
 import sys
+import time
 import argparse
 from Bio import SeqIO
 from MolSeq import MolSeq
@@ -28,12 +29,18 @@ if __name__ == "__main__":
 		seq = str(seq_record.seq)
 		seq_fasta = MolSeq(seq_id, seq).to_fasta()
 		with open('query.fasta', 'w') as f:	f.write(seq_fasta)
+		start = time.time()
 		cur = Curation('query.fasta')
 		if not args.flag:
 			print("Accession:", cur.get_accession())
 			print("Subtype:", cur.get_strain())
 			print("Ambiguity Flags:", cur.ambiguity_flags())
-			print("Mutation Flags:", cur.curation_table())
+			print("Mutation Flags:\n", cur.curation_table())
+			print('\n')
+		elif args.flag == 'muts':
+			print("Accession:", cur.get_accession())
+			print("Subtype:", cur.get_strain())
+			print("Mutation Flags:\n", cur.curation_table())
 			print('\n')
 		elif args.flag == 'ambig':
 			print("Accession:", cur.get_accession())
@@ -43,15 +50,18 @@ if __name__ == "__main__":
 		elif args.flag == 'ins':
 			print("Accession:", cur.get_accession())
 			print("Subtype:", cur.get_strain())
-			print("Insertion Flags:", cur.insertion_flags())
+			print("Insertion Flags:\n", cur.insertion_flags())
 			print('\n')
 		elif args.flag == 'del':
 			print("Accession:", cur.get_accession())
 			print("Subtype:", cur.get_strain())
-			print("Deletion Flags:", cur.deletion_flags())
+			print("Deletion Flags:\n", cur.deletion_flags())
 			print('\n')
 		elif args.flag == 'sub':
 			print("Accession:", cur.get_accession())
 			print("Subtype:", cur.get_strain())
-			print("Substitution Flags:", cur.substitution_flags())
+			print("Substitution Flags:\n", cur.substitution_flags())
 			print('\n')
+		end = time.time()
+		print("Compute time for sequence:", round(end - start, 3))
+		print('\n')

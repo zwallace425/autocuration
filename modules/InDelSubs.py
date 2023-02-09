@@ -1,5 +1,6 @@
-# This object is meant for detecting the positions of any deletions in the query sequence
-# upon alignment to the profile
+# This object is meant for detecting the positions of any insertions, deletions, deletions, or substitutions,
+# in the query sequence upon alignment to the profile and then determines the artifact flag  due to
+# those mutations
 
 import pandas as pd
 import numpy as np
@@ -99,6 +100,11 @@ class InDelSubs(object):
 
 				region_dels_p = [i for i in profile_del if start_p <= i <= end_p]
 				region_dels_q = [i for i in query_del if start_q <= i <= end_q]
+
+				# This will not allow flagging of sequences that are simply shorter;
+				# ie, gaps at the beginning or end of sequence relative to profile
+				if (region_dels_q[0] == 0) or (region_dels_q[0] == (len(self.query_seq)-len(self.nkdp))):
+					continue
 
 				if len(pos) > 1:
 					profile_pos = str(region_dels_p[0])+".."+str(region_dels_p[len(region_dels_p)-1])

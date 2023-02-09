@@ -84,16 +84,16 @@ class Curation(object):
 	def curation_table(self):
 
 		if self.flags == []:
-			return("NO MUTATION FLAGS")
+			return("PASS")
 		else:
 			df = pd.DataFrame(self.flags, columns = ['Flag', 'Profile Position', 'Query Position', 'Variant', 'Length'])
-			return("\n{}".format(df))
+			return(df)
 
 	# Return a ambiguity flag(s) for input query sequence
 	def ambiguity_flags(self):
 
 		if self.ambig_flags == []:
-			return("NO AMBIGUITY FLAGS")
+			return("PASS")
 		else:
 			return(self.ambig_flags)
 
@@ -174,28 +174,28 @@ class Curation(object):
 	def deletion_flags(self):
 
 		if self.del_flags == []:
-			return("NO DELETION FLAGS")
+			return("PASS")
 		else:
 			df = pd.DataFrame(self.del_flags, columns = ['Flag', 'Profile Position', 'Query Position', 'Variant', 'Length'])
-			return("\n{}".format(df))
+			return(df)
 
 	# Return just a table of the insertion flags, if any
 	def insertion_flags(self):
 
 		if self.ins_flags == []:
-			return("NO INSERTION FLAGS")
+			return("PASS")
 		else:
 			df = pd.DataFrame(self.ins_flags, columns = ['Flag', 'Profile Position', 'Query Position', 'Variant', 'Length'])
-			return("\n{}".format(df))
+			return(df)
 
 	# Return just a table of the substitution flags, if any
 	def substitution_flags(self):
 
 		if self.sub_flags == []:
-			return("NO SUBSTITUTION FLAGS")
+			return("PASS")
 		else:
 			df = pd.DataFrame(self.sub_flags, columns = ['Flag', 'Profile Position', 'Query Position', 'Variant', 'Length'])
-			return("\n{}".format(df))
+			return(df)
 
 	# Return the file name of the profile
 	def get_profile(self):

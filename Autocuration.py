@@ -71,7 +71,7 @@ class Curation(object):
 			ambig_flags.append("Excess-N")
 		if molseq.get_ambig_content() > 0.005:
 			ambig_flags.append("Excess-Ambig")
-		if identity < 0.5:
+		if identity < 0.95:
 			ambig_flags.append("Excess-Dist")
 
 
@@ -92,16 +92,16 @@ class Curation(object):
 	def curation_table(self):
 
 		if self.flags == []:
-			return("NO MUTATION FLAGS")
+			return("PASS")
 		else:
 			df = pd.DataFrame(self.flags, columns = ['Flag', 'Profile Position', 'Query Position', 'Variant', 'Length'])
-			return("\n{}".format(df))
+			return(df)
 
 	# Return a ambiguity flag(s) for input query sequence
 	def ambiguity_flags(self):
 
 		if self.ambig_flags == []:
-			return("NO AMBIGUITY FLAGS")
+			return("PASS")
 		else:
 			return(self.ambig_flags)
 
@@ -182,28 +182,28 @@ class Curation(object):
 	def deletion_flags(self):
 
 		if self.del_flags == []:
-			return("NO DELETION FLAGS")
+			return("PASS")
 		else:
 			df = pd.DataFrame(self.del_flags, columns = ['Flag', 'Profile Position', 'Query Position', 'Variant', 'Length'])
-			return("\n{}".format(df))
+			return(df)
 
 	# Return just a table of the insertion flags, if any
 	def insertion_flags(self):
 
 		if self.ins_flags == []:
-			return("NO INSERTION FLAGS")
+			return("PASS")
 		else:
 			df = pd.DataFrame(self.ins_flags, columns = ['Flag', 'Profile Position', 'Query Position', 'Variant', 'Length'])
-			return("\n{}".format(df))
+			return(df)
 
 	# Return just a table of the substitution flags, if any
 	def substitution_flags(self):
 
 		if self.sub_flags == []:
-			return("NO SUBSTITUTION FLAGS")
+			return("PASS")
 		else:
 			df = pd.DataFrame(self.sub_flags, columns = ['Flag', 'Profile Position', 'Query Position', 'Variant', 'Length'])
-			return("\n{}".format(df))
+			return(df)
 
 	# Return the file name of the profile
 	def get_profile(self):
@@ -355,8 +355,9 @@ class MolSeq(object):
 
 
 
-# This object is meant for detecting the positions of any deletions in the query sequence
-# upon alignment to the profile
+# This object is meant for detecting the positions of any insertions, deletions, deletions, or substitutions,
+# in the query sequence upon alignment to the profile and then determines the artifact flag  due to
+# those mutations
 class InDelSubs(object):
 
 	# This object just expects the profile alignment in fasta, computed in a separate module.
@@ -448,6 +449,11 @@ class InDelSubs(object):
 
 				region_dels_p = [i for i in profile_del if start_p <= i <= end_p]
 				region_dels_q = [i for i in query_del if start_q <= i <= end_q]
+
+				# This will not allow flagging of sequences that are simply shorter;
+				# ie, gaps at the beginning or end of sequence relative to profile
+				if (region_dels_q[0] == 0) or (region_dels_q[0] == (len(self.query_seq)-len(self.nkdp))):
+					continue
 
 				if len(pos) > 1:
 					profile_pos = str(region_dels_p[0])+".."+str(region_dels_p[len(region_dels_p)-1])
@@ -695,12 +701,12 @@ if __name__ == "__main__":
 			print("Accession:", cur.get_accession())
 			print("Subtype:", cur.get_strain())
 			print("Ambiguity Flags:", cur.ambiguity_flags())
-			print("Mutation Flags:", cur.curation_table())
+			print("Mutation Flags:\n", cur.curation_table())
 			print('\n')
 		elif args.flag == 'muts':
 			print("Accession:", cur.get_accession())
 			print("Subtype:", cur.get_strain())
-			print("Mutation Flags:", cur.curation_table())
+			print("Mutation Flags:\n", cur.curation_table())
 			print('\n')
 		elif args.flag == 'ambig':
 			print("Accession:", cur.get_accession())
@@ -710,17 +716,17 @@ if __name__ == "__main__":
 		elif args.flag == 'ins':
 			print("Accession:", cur.get_accession())
 			print("Subtype:", cur.get_strain())
-			print("Insertion Flags:", cur.insertion_flags())
+			print("Insertion Flags:\n", cur.insertion_flags())
 			print('\n')
 		elif args.flag == 'del':
 			print("Accession:", cur.get_accession())
 			print("Subtype:", cur.get_strain())
-			print("Deletion Flags:", cur.deletion_flags())
+			print("Deletion Flags:\n", cur.deletion_flags())
 			print('\n')
 		elif args.flag == 'sub':
 			print("Accession:", cur.get_accession())
 			print("Subtype:", cur.get_strain())
-			print("Substitution Flags:", cur.substitution_flags())
+			print("Substitution Flags:\n", cur.substitution_flags())
 			print('\n')
 		end = time.time()
 		print("Compute time for sequence:", round(end - start, 3))
