@@ -16,7 +16,7 @@ from MolSeq import MolSeq
 
 class Curation(object):
 
-	# This object expects a single query nucleotide sequence in fasta at minimum. Optionally, it can also take a 
+	# This object expects a SINGLE QUERY nucleotide sequence in fasta at minimum. Optionally, it can also take a 
 	# strain name denoted as [Speicies]_[Segment #]_[Subtype].  The object can also take in a specified boundary 
 	# file, lookup table file, and a directory name specifying the location of all the profile fasta files.  If
 	# those required files are not inputted as arguments, the object navigates to the default location of these
@@ -38,6 +38,23 @@ class Curation(object):
 			identity = b.get_identity()
 			strainName = b.get_strain()
 
+		# Check if BLAST result found profile. If not, abort the rest of the pipeline
+		if profile == "Unknown":
+			self.profile = "Unknown"
+			self.strainName = "Unknown"
+			self.accession = accession
+			return
+
+		# Determine the ambiguity flags, if any
+		ambig_flags = []
+		molseq = MolSeq(accession, sequence)
+		if molseq.get_n_content() > 0.005:
+			ambig_flags.append("Excess-N")
+		if molseq.get_ambig_content() > 0.005:
+			ambig_flags.append("Excess-Ambig")
+		if identity < 0.95:
+			ambig_flags.append("Excess-Dist")
+
 		# Compute the alignment of the query to the profile using MAFFT
 		alignment = profile_dir+"/precomputed_alignment.fasta"
 		cmd = "mafft --add "+query+" --globalpair --maxiterate 1000 "+profile_dir+"/"+profile+" > "+alignment
@@ -54,24 +71,13 @@ class Curation(object):
 		ins_flags = muts.insertion_flags(boundary_df)
 		sub_flags = muts.substitution_flags(boundary_df)
 
-		flags = del_flags + ins_flags + sub_flags
-
-		# Determine the ambiguity flags, if any
-		ambig_flags = []
-		molseq = MolSeq(accession, sequence)
-		if molseq.get_n_content() > 0.005:
-			ambig_flags.append("Excess-N")
-		if molseq.get_ambig_content() > 0.005:
-			ambig_flags.append("Excess-Ambig")
-		if identity < 0.5:
-			ambig_flags.append("Excess-Dist")
-
+		mut_flags = del_flags + ins_flags + sub_flags
 
 		# Only save alignment if no insertion flags
 		if len(ins_flags) == 0:
 			self.save_alignment(accession, alignment, output_dir)
 
-		self.flags = flags
+		self.mut_flags = mut_flags
 		self.del_flags = del_flags
 		self.ins_flags = ins_flags
 		self.sub_flags = sub_flags
@@ -80,20 +86,28 @@ class Curation(object):
 		self.strainName = strainName
 		self.accession = accession
 
-	# Return a table with all the NCR/CDS curation information about the sequence, otherwise return 'NO FLAGS'
-	def curation_table(self):
+	# Return a table with all mutation flags occuring in the sequence, otherwise return 'Pass' if no flags
+	# However, if no profile alignment was found in BLAST step, return 'Unknown'
+	def mutation_flags(self):
 
-		if self.flags == []:
-			return("PASS")
+		if self.profile == "Unknown":
+			return("Unknown")
+
+		if self.mut_flags == []:
+			return("Pass")
 		else:
-			df = pd.DataFrame(self.flags, columns = ['Flag', 'Profile Position', 'Query Position', 'Variant', 'Length'])
+			df = pd.DataFrame(self.mut_flags, columns = ['Flag', 'Profile Position', 'Query Position', 'Variant', 'Length'])
 			return(df)
 
 	# Return a ambiguity flag(s) for input query sequence
+	# If no profile alignment was found in BLAST step, return 'Excess-Dist'
 	def ambiguity_flags(self):
 
+		if self.profile == "Unknown":
+			return("Excess-Dist")
+
 		if self.ambig_flags == []:
-			return("PASS")
+			return("Pass")
 		else:
 			return(self.ambig_flags)
 
@@ -102,12 +116,18 @@ class Curation(object):
 
 		table6 = pd.read_csv(Table6, sep = '\t')
 
-		# If no flags, abort function and return table 6 back
-		if self.flags == []:
+		# If no profile was found from BLAST (no strong hits), abort function
+		# There is nothing to update for table 6
+		if self.profile == "Unknown":
+			return
+
+		# If no flags, abort function
+		# There is nothing to update for table 6
+		if self.mut_flags == []:
 			return
 
 		# Loop through all detected flags
-		for flag in self.flags:
+		for flag in self.mut_flags:
 			if (flag[0] == "5'NCR-ext") or (flag[0] == "3'NCR-ext"):
 				table6_profile = table6[(table6['PROFILE_NAME'] == self.profile) & (table6['FLU_SUBTYPE'] == self.strainName) & 
 				(table6['AUTO_ALIGNMENT_ISSUE'] == flag[0])]
@@ -173,8 +193,11 @@ class Curation(object):
 	# Return just a table of the deletion flags, if any
 	def deletion_flags(self):
 
+		if self.profile == "Unknown":
+			return("Unknown")
+
 		if self.del_flags == []:
-			return("PASS")
+			return("Pass")
 		else:
 			df = pd.DataFrame(self.del_flags, columns = ['Flag', 'Profile Position', 'Query Position', 'Variant', 'Length'])
 			return(df)
@@ -182,8 +205,11 @@ class Curation(object):
 	# Return just a table of the insertion flags, if any
 	def insertion_flags(self):
 
+		if self.profile == "Unknown":
+			return("Unknown")
+
 		if self.ins_flags == []:
-			return("PASS")
+			return("Pass")
 		else:
 			df = pd.DataFrame(self.ins_flags, columns = ['Flag', 'Profile Position', 'Query Position', 'Variant', 'Length'])
 			return(df)
@@ -191,8 +217,11 @@ class Curation(object):
 	# Return just a table of the substitution flags, if any
 	def substitution_flags(self):
 
+		if self.profile == "Unknown":
+			return("Unknown")
+
 		if self.sub_flags == []:
-			return("PASS")
+			return("Pass")
 		else:
 			df = pd.DataFrame(self.sub_flags, columns = ['Flag', 'Profile Position', 'Query Position', 'Variant', 'Length'])
 			return(df)

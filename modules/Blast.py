@@ -9,7 +9,8 @@ class Blast(object):
 
 	# Intialize the blasting object by passing in the query sequence and optional blast database.
 	# The blast database should be pre-computed and stored somewhere, otherwise, a blast database
-	# can be passed into the init function.
+	# can be passed into the init function.  The default parameters are the default locations of the
+	# blast database and blast command line program.
 	def __init__(self, query, blast_db = 'blast/flu_profiles_db.fasta', blastn_cmd = 'blast/blastn', 
 		blast_result = 'blast/blast_result.xml'):
 
@@ -19,11 +20,13 @@ class Blast(object):
 
 		result_handle = open(blast_result)
 		for result in NCBIXML.parse(result_handle):
-			profile = result.alignments[0].title
-			identity = float(result.alignments[0].hsps[0].identities)/float(result.alignments[0].hsps[0].align_length)
+			if len(result.alignments) > 0:
+				profile = result.alignments[0].title.split("|")[3]
+				identity = float(result.alignments[0].hsps[0].identities)/float(result.alignments[0].hsps[0].align_length)
+			else:
+				profile = "Unknown"
+				identity = 0
 			break
-
-		profile = profile.split("|")[3]
 
 		self.profile = profile
 		self.identity = identity
@@ -41,9 +44,12 @@ class Blast(object):
 	# Return the strain name of the query
 	def get_strain(self):
 
-		strain = self.profile.split("_")
-		strain = strain[:len(strain)-1]
-		strain = "_".join(strain)
+		if self.profile == "Unknown":
+			strain = "Unknown"
+		else:
+			strain = self.profile.split("_")
+			strain = strain[:len(strain)-1]
+			strain = "_".join(strain)
 
 		return(strain)
 

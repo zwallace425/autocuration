@@ -21,7 +21,7 @@ if __name__ == "__main__":
 
 	if (not args.query):
 		sys.exit("ERROR: No query sequence input")
-	if (args.flag and (args.flag != 'muts' and args.flag != 'ambig' and args.flag != 'ins' and args.flag != 'del' and args.flag != 'sub')):
+	if (args.flag and (args.flag != 'mut' and args.flag != 'ambig' and args.flag != 'ins' and args.flag != 'del' and args.flag != 'sub')):
 		sys.exit("ERROR: Invalid flag argument\n --flag [all/ambig/ins/del/sub]")
 
 	for seq_record in SeqIO.parse(args.query, 'fasta'):
@@ -35,12 +35,12 @@ if __name__ == "__main__":
 			print("Accession:", cur.get_accession())
 			print("Subtype:", cur.get_strain())
 			print("Ambiguity Flags:", cur.ambiguity_flags())
-			print("Mutation Flags:\n", cur.curation_table())
+			print("Mutation Flags:\n", cur.mutation_flags())
 			print('\n')
-		elif args.flag == 'muts':
+		elif args.flag == 'mut':
 			print("Accession:", cur.get_accession())
 			print("Subtype:", cur.get_strain())
-			print("Mutation Flags:\n", cur.curation_table())
+			print("Mutation Flags:\n", cur.mutation_flags())
 			print('\n')
 		elif args.flag == 'ambig':
 			print("Accession:", cur.get_accession())

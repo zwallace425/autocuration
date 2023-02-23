@@ -56,29 +56,42 @@ class InDelSubs(object):
 		# nkadp = Non-Keeplenght Accepted Deletion Positions
 		nkadp = set(profile_dash_union - nkip)
 
+		# Group together non-keep-length sequential deletions as a list of lists
+		del_groups = []
+		flag_dels = list(set(set(nkdp) - set(nkadp)))
+		flag_dels = np.array(flag_dels)
+		flag_dels = np.sort(flag_dels)
+		for k, g in groupby(enumerate(flag_dels), lambda ix: ix[0] - ix[1]):
+			del_groups.append(list(map(itemgetter(1), g)))
+
+		# Group together non-keep-length sequential insertions as a list of lists
+		ins_groups = []
+		nkip = np.array(list(nkip))
+		nkip = np.sort(nkip)
+		for k, g in groupby(enumerate(nkip), lambda ix: ix[0] - ix[1]):
+			ins_groups.append(list(map(itemgetter(1), g)))
+
 		self.nkdp = nkdp
 		self.nkip = nkip
 		self.nkadp = nkadp
 		self.query_seq = query_seq
 		self.profile_seqs = profile_seqs
+		self.del_groups = del_groups
+		self.ins_groups = ins_groups
 
 	# Reports the flags triggered by deletions. Requires the processed boundary file and
 	# lookup table file as pandas dataframes.
 	def deletion_flags(self, boundary_df, lookup_df):
 
-		# Extract deletions not accepted in the profile alignment
-		flag_dels = list(set(set(self.nkdp) - set(self.nkadp)))
-
-		# Group together non-keep-length sequential deletions
-		positions = []
-		flag_dels = np.array(flag_dels)
-		flag_dels = np.sort(flag_dels)
-		for k, g in groupby(enumerate(flag_dels), lambda ix: ix[0] - ix[1]):
-			positions.append(list(map(itemgetter(1), g)))
+		# Needed for adjusting profile positions to query positions
+		all_profile_ins = [(j-len([i for i in self.nkip if i <= j]))+1 for j in self.nkip]
+		all_profile_del = [(j-len([i for i in self.nkip if i < j]))+1 for j in self.nkdp]
 
 		flags = []
-		for pos in positions:
+		for pos in self.del_groups:
 			
+			# Profile and query deletions in the group. profile_del has exact profile positions
+			# but query_del has the positions in the query proceeding deletions event
 			profile_del = [(j-len([i for i in self.nkip if i < j]))+1 for j in pos]
 			query_del = [(j-len([i for i in self.nkdp if i <= j]))+1 for j in pos]
 
@@ -90,14 +103,16 @@ class InDelSubs(object):
 			for reg in regions:
 				region = reg['Region']
 				
-				# Region start end with respect to profile
+				# Annotated region start end with respect to profile
 				start_p = reg['Start']
 				end_p = reg['End']
 				
-				# Region start end with respect to query
-				start_q = start_p - len([i for i in self.nkdp if i <= start_p])+1
-				end_q = end_p - len([i for i in self.nkdp if i <= end_p])+1
+				# Annotated region start end with respect to query
+				# Take into account insertions and deletions occuring before the profile position
+				start_q = start_p + len([i for i in all_profile_ins if i < start_p]) - len([j for j in all_profile_del if j <= start_p])
+				end_q = end_p + len([i for i in all_profile_ins if i < end_p]) - len([j for j in all_profile_del if j <= end_p])
 
+				# Positions of deletions in the annotated region with respect to profile and query
 				region_dels_p = [i for i in profile_del if start_p <= i <= end_p]
 				region_dels_q = [i for i in query_del if start_q <= i <= end_q]
 
@@ -138,15 +153,8 @@ class InDelSubs(object):
 
 		profile_length = boundary_df['End'][4]
 
-		# Group together non-keep-length sequential insertions
-		positions = []
-		nkip = np.array(list(self.nkip))
-		nkip = np.sort(nkip)
-		for k, g in groupby(enumerate(nkip), lambda ix: ix[0] - ix[1]):
-			positions.append(list(map(itemgetter(1), g)))
-
 		flags = []
-		for pos in positions:
+		for pos in self.ins_groups:
 
 			ins_muts = self.query_seq[pos[0]:pos[len(pos)-1]+1].upper()
 
