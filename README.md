@@ -55,6 +55,16 @@ To recreate a BLAST database due to a new collection of profile alignments in th
 
 	python build_blast_db.py
 
+## Pipeline Performance
+
+Disjoint sequence batches for Influenza A-D tagged with artifact flags in the FASTA metadata from the previous 
+version of the Autocuration pipeline were downloaded from the legacy Influenza Research Database.  The
+sequences from these four Influenza FASTA files were ran against our pipeline in 'test_accuracy.py', and the
+curation results were used to analyze precision, recall, and accuracy of our version of the Autocuration pipeline 
+relative to the results from the previous pipeline.  There are several precision, recall, and accuracy metrics 
+that need to used to evaluate this pipeline, and a thorough evaluation of this pipeline performance with each 
+of these metrics can be viewed in the notebook 'AnalyzeAccuracy.ipynb'.
+
 ## Pipeline Broken Down by Modules
 
 The pipeline can also be broken into indvidual scriptable modules useful as pluggins. These are all

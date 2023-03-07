@@ -122,8 +122,6 @@ class Curation(object):
 	# Update Dr. Macken's Table 6 for curation bookeeping
 	def update_table6(self, Table6 = 'outputs/Table6_Jan2019Release.txt', ):
 
-		table6 = pd.read_csv(Table6, sep = '\t')
-
 		# If no profile was found from BLAST (no strong hits), abort function
 		# There is nothing to update for table 6
 		if self.profile == "Unknown":
@@ -133,6 +131,8 @@ class Curation(object):
 		# There is nothing to update for table 6
 		if self.mut_flags == []:
 			return
+
+		table6 = pd.read_csv(Table6, sep = '\t')
 
 		# Loop through all detected flags
 		for flag in self.mut_flags:
@@ -385,9 +385,9 @@ class MolSeq(object):
 
 
 
-# This object is meant for detecting the positions of any insertions, deletions, deletions, or substitutions,
+# This object is meant for detecting the positions of any insertions, deletions, or substitutions,
 # in the query sequence upon alignment to the profile and then determines the artifact flag  due to
-# those mutations
+# those mutations.
 class InDelSubs(object):
 
 	# This object just expects the profile alignment in fasta, computed in a separate module.
