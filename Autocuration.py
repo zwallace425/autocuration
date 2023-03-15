@@ -120,7 +120,7 @@ class Curation(object):
 			return(self.ambig_flags)
 
 	# Update Dr. Macken's Table 6 for curation bookeeping
-	def update_table6(self, Table6 = 'outputs/Table6_Jan2019Release.txt', ):
+	def update_table6(self, Table6 = 'outputs/Table6_Jan2019Release.txt'):
 
 		# If no profile was found from BLAST (no strong hits), abort function
 		# There is nothing to update for table 6
@@ -142,6 +142,7 @@ class Curation(object):
 				# Check if flag returns something already in the table
 				if not table6_profile.empty:
 					index = table6_profile.index[0]
+					status = str(table6['STATUS'][index])
 					acc_list = set(str(table6['ACCESSION_LIST'][index]).split(","))
 					if self.accession not in acc_list:
 						acc_list.add(self.accession)
@@ -149,7 +150,8 @@ class Curation(object):
 						acc_list.sort()
 						acc_list = ",".join(acc_list)
 
-						table6.at[index, 'STATUS'] = str("Updated")
+						if status == "Unchanged":
+							table6.at[index, 'STATUS'] = str("Updated")
 						table6.at[index, 'ACCESSION_COUNT'] = int(table6['ACCESSION_COUNT'][index])+1
 						table6.at[index, 'ACCESSION_LIST'] = str(acc_list)
 
@@ -164,6 +166,7 @@ class Curation(object):
 				(table6['AUTO_ALIGNMENT_ISSUE'] == flag[0]) & (table6['POS_PROFILE'] == flag[1])]
 				if not table6_profile.empty:
 					index = table6_profile.index[0]
+					status = str(table6['STATUS'][index])
 					acc_list = set(str(table6['ACCESSION_LIST'][index]).split(","))
 					if self.accession not in acc_list:
 						acc_list.add(self.accession)
@@ -171,7 +174,8 @@ class Curation(object):
 						acc_list.sort()
 						acc_list = ",".join(acc_list)
 
-						table6.at[index, 'STATUS'] = str("Updated")
+						if status == "Unchanged":
+							table6.at[index, 'STATUS'] = str("Updated")
 						table6.at[index, 'ACCESSION_COUNT'] = int(table6['ACCESSION_COUNT'][index])+1
 						table6.at[index, 'ACCESSION_LIST'] = str(acc_list)
 
