@@ -7,12 +7,14 @@ developed by JCVI/BV-BRC in collaboration with Dr. Catherine Macken at the Unver
 
 ## Pipeline Dependencies
 
-(1) To run the pipeline, python >=3.x is required
+(1) python >=3.x is required
 
-(2) MAFFT is a requirement for this pipeline.  Please download MAFFT version 7.490 from 
-https://mafft.cbrc.jp/alignment/software/ and place in your absolute PATH
+(2) MAFFT is a required.  Please download MAFFT version 7.490 from https://mafft.cbrc.jp/alignment/software/
+and place in your absolute PATH or use conda install by running
+	
+	conda install -c bioconda mafft
 
-(3) To install the necessary dependencies, run the following in command line after cloning the repo
+(3) To install the necessary dependencies, run the following in command line
 	
 	source env_setup.sh
 
