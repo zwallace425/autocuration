@@ -21,16 +21,28 @@ class Curation(object):
 	# file, lookup table file, and a directory name specifying the location of all the profile fasta files.  If
 	# those required files are not inputted as arguments, the object navigates to the default location of these
 	# files.
-	def __init__(self, query, strainName = None, boundaryFile = "profiles/Flu_profile_boundaries_20181012.txt", 
+	def __init__(self, query, strainName = None, mafft_penalty = True, boundaryFile = "profiles/Flu_profile_boundaries_20181012.txt", 
 		lookupTable = "profiles/Flu_profile_lookupTable_20181203.txt", profile_dir = "profiles", output_dir = "outputs"):
 
+		# Set the MAFFT parameter
+		if mafft_penalty:
+			# Set the gap penalty MAFFT parameter with --globalpair.  Can improve accuracy,but
+			# slows down the pipeline
+			parameter = ' --globalpair --maxiterate 1000 '
+		else:
+			# Don't use gap penalty option
+			parameter = ' --maxiterate 1000 '
+			
 		# Grab accession number and nucleotide sequence string for query sequence in the fasta file
 		accession, sequence = self.get_acc_and_seq(query)
 
 		# Only BLAST if strain name not passed to init
 		if strainName:
 			# Get the appropriate profile for the profile_dir based on the strain name
-			profile = [filename for filename in os.listdir(profile_dir) if filename.startswith(strainName)][0]
+			try:
+				profile = [filename for filename in os.listdir(profile_dir) if filename.startswith(strainName)][0]
+			except:
+				raise Exception("Invalid profiles directory")
 		else:
 			# BLAST query to determine the appropriate profile and strain name
 			b = Blast(query)
@@ -57,7 +69,7 @@ class Curation(object):
 
 		# Compute the alignment of the query to the profile using MAFFT
 		alignment = profile_dir+"/precomputed_alignment.fasta"
-		cmd = "mafft --add "+query+" --globalpair --maxiterate 1000 "+profile_dir+"/"+profile+" > "+alignment
+		cmd = "mafft --add "+query+parameter+profile_dir+"/"+profile+" > "+alignment
 		subprocess.call(cmd, shell = True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
 
 		# Parse boundary and lookup table text files
@@ -112,9 +124,7 @@ class Curation(object):
 			return(self.ambig_flags)
 
 	# Update Dr. Macken's Table 6 for curation bookeeping
-	def update_table6(self, Table6 = 'outputs/Table6_Jan2019Release.txt', ):
-
-		table6 = pd.read_csv(Table6, sep = '\t')
+	def update_table6(self, Table6 = 'outputs/Table6_Jan2019Release.txt'):
 
 		# If no profile was found from BLAST (no strong hits), abort function
 		# There is nothing to update for table 6
@@ -126,6 +136,11 @@ class Curation(object):
 		if self.mut_flags == []:
 			return
 
+		try:
+			table6 = pd.read_csv(Table6, sep = '\t')
+		except:
+			raise Exception("Invalid table6 directory and/or file")
+
 		# Loop through all detected flags
 		for flag in self.mut_flags:
 			if (flag[0] == "5'NCR-ext") or (flag[0] == "3'NCR-ext"):
@@ -134,6 +149,7 @@ class Curation(object):
 				# Check if flag returns something already in the table
 				if not table6_profile.empty:
 					index = table6_profile.index[0]
+					status = str(table6['STATUS'][index])
 					acc_list = set(str(table6['ACCESSION_LIST'][index]).split(","))
 					if self.accession not in acc_list:
 						acc_list.add(self.accession)
@@ -141,7 +157,8 @@ class Curation(object):
 						acc_list.sort()
 						acc_list = ",".join(acc_list)
 
-						table6.at[index, 'STATUS'] = str("Updated")
+						if status == "Unchanged":
+							table6.at[index, 'STATUS'] = str("Updated")
 						table6.at[index, 'ACCESSION_COUNT'] = int(table6['ACCESSION_COUNT'][index])+1
 						table6.at[index, 'ACCESSION_LIST'] = str(acc_list)
 
@@ -156,6 +173,7 @@ class Curation(object):
 				(table6['AUTO_ALIGNMENT_ISSUE'] == flag[0]) & (table6['POS_PROFILE'] == flag[1])]
 				if not table6_profile.empty:
 					index = table6_profile.index[0]
+					status = str(table6['STATUS'][index])
 					acc_list = set(str(table6['ACCESSION_LIST'][index]).split(","))
 					if self.accession not in acc_list:
 						acc_list.add(self.accession)
@@ -163,7 +181,8 @@ class Curation(object):
 						acc_list.sort()
 						acc_list = ",".join(acc_list)
 
-						table6.at[index, 'STATUS'] = str("Updated")
+						if status == "Unchanged":
+							table6.at[index, 'STATUS'] = str("Updated")
 						table6.at[index, 'ACCESSION_COUNT'] = int(table6['ACCESSION_COUNT'][index])+1
 						table6.at[index, 'ACCESSION_LIST'] = str(acc_list)
 
@@ -261,7 +280,10 @@ class Curation(object):
 	@staticmethod
 	def parse_boundaryFile(strainName, boundaryFile):
 
-		boundary_types = open(boundaryFile, 'r').readlines()
+		try:
+			boundary_types = open(boundaryFile, 'r').readlines()
+		except:
+			raise Exception("Invalid boundaryFile directory and/or file")
 		boundary = ""
 		for line in boundary_types:	
 			if (line.startswith(strainName)):
@@ -286,7 +308,10 @@ class Curation(object):
 	@staticmethod
 	def parse_lookupTable(strainName, lookupTable):
 
-		lookup_open = open(lookupTable, 'r', encoding = "ISO-8859-1")
+		try:
+			lookup_open = open(lookupTable, 'r', encoding = "ISO-8859-1")
+		except:
+			raise Exception("Invalid lookupTable directory and/or file")
 		lookup_allowed = lookup_open.readlines()
 		strain_lookup = []
 		for line in lookup_allowed:	

@@ -1,6 +1,7 @@
 # Main program for running the whole script from commandline
 # Required argument: --query [QUERY FASTA]
 # Optional argument: --flag [muts/ambig/ins/del/sub] (ie, the type of flags to return)
+# Optional argument: --mafft_penalty [True/False] (ie, run MAFFT with alg applying gap penalty)
 
 import sys
 import time
@@ -17,12 +18,21 @@ if __name__ == "__main__":
 	parser.add_argument('--query', dest = 'query', type = str)
 	# Optional argument
 	parser.add_argument('--flag', dest = 'flag', type = str)
+	parser.add_argument('--mafft_penalty', dest = 'mafft_penalty', type = str)
 	args = parser.parse_args()
 
 	if (not args.query):
 		sys.exit("ERROR: No query sequence input")
 	if (args.flag and (args.flag != 'mut' and args.flag != 'ambig' and args.flag != 'ins' and args.flag != 'del' and args.flag != 'sub')):
 		sys.exit("ERROR: Invalid flag argument\n --flag [all/ambig/ins/del/sub]")
+	if (args.mafft_penalty and (args.mafft_penalty != 'True' and args.mafft_penalty != 'False')):
+		sys.exit("ERROR: Invalid MAFFT penalty argument\n --mafft_penalty [True/False]")
+	elif (args.mafft_penalty and (args.mafft_penalty == 'True')):
+		mafft_penalty = True
+	elif (args.mafft_penalty and (args.mafft_penalty == 'False')):
+		mafft_penalty = False
+	else:
+		mafft_penalty = True
 
 	for seq_record in SeqIO.parse(args.query, 'fasta'):
 		seq_id = str(seq_record.id)
@@ -30,7 +40,7 @@ if __name__ == "__main__":
 		seq_fasta = MolSeq(seq_id, seq).to_fasta()
 		with open('query.fasta', 'w') as f:	f.write(seq_fasta)
 		start = time.time()
-		cur = Curation('query.fasta')
+		cur = Curation('query.fasta', mafft_penalty = mafft_penalty)
 		if not args.flag:
 			print("Accession:", cur.get_accession())
 			print("Subtype:", cur.get_strain())

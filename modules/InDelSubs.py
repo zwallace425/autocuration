@@ -9,6 +9,7 @@ from itertools import groupby
 from operator import itemgetter
 from collections import Counter
 
+
 class InDelSubs(object):
 
 	# This object just expects the profile alignment in fasta, computed in a separate module.
@@ -208,11 +209,11 @@ class InDelSubs(object):
 		CTS3_end = list(CTS3['End'])[0] - 1
 
 		# Adjust the 5'/3' CTS start/end to accommidate for the non-keep length alignment
-		# by factoring in the nkip values
-		CTS5_start_adj = CTS5_start + len([i for i in self.nkip if i < CTS5_start])
-		CTS3_start_adj = CTS3_start + len([i for i in self.nkip if i < CTS3_start])
-		CTS5_end_adj = CTS5_end + len([i for i in self.nkip if i < CTS5_end])
-		CTS3_end_adj = CTS3_end + len([i for i in self.nkip if i < CTS3_end])
+		# by factoring in the positions of sequential deletions from the ins_groups
+		CTS5_start_adj = CTS5_start
+		CTS3_start_adj = CTS3_start + sum([len(self.ins_groups[i]) for i in range(len(self.ins_groups)) if self.ins_groups[i][0] < CTS3_start])
+		CTS5_end_adj = CTS5_end + sum([len(self.ins_groups[i]) for i in range(len(self.ins_groups)) if self.ins_groups[i][0] < CTS5_end])
+		CTS3_end_adj = CTS3_end + sum([len(self.ins_groups[i]) for i in range(len(self.ins_groups)) if self.ins_groups[i][0] < CTS3_end])
 
 		# Get the CTS regions of the query sequence
 		CTS5_query = self.query_seq[CTS5_start_adj:CTS5_end_adj+1]

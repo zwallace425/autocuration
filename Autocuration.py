@@ -29,16 +29,28 @@ class Curation(object):
 	# file, lookup table file, and a directory name specifying the location of all the profile fasta files.  If
 	# those required files are not inputted as arguments, the object navigates to the default location of these
 	# files.
-	def __init__(self, query, strainName = None, boundaryFile = "profiles/Flu_profile_boundaries_20181012.txt", 
+	def __init__(self, query, strainName = None, mafft_penalty = True, boundaryFile = "profiles/Flu_profile_boundaries_20181012.txt", 
 		lookupTable = "profiles/Flu_profile_lookupTable_20181203.txt", profile_dir = "profiles", output_dir = "outputs"):
 
+		# Set the MAFFT parameter
+		if mafft_penalty:
+			# Set the gap penalty MAFFT parameter with --globalpair.  Can improve accuracy,but
+			# slows down the pipeline
+			parameter = ' --globalpair --maxiterate 1000 '
+		else:
+			# Don't use gap penalty option
+			parameter = ' --maxiterate 1000 '
+			
 		# Grab accession number and nucleotide sequence string for query sequence in the fasta file
 		accession, sequence = self.get_acc_and_seq(query)
 
 		# Only BLAST if strain name not passed to init
 		if strainName:
 			# Get the appropriate profile for the profile_dir based on the strain name
-			profile = [filename for filename in os.listdir(profile_dir) if filename.startswith(strainName)][0]
+			try:
+				profile = [filename for filename in os.listdir(profile_dir) if filename.startswith(strainName)][0]
+			except:
+				raise Exception("Invalid profiles directory")
 		else:
 			# BLAST query to determine the appropriate profile and strain name
 			b = Blast(query)
@@ -65,7 +77,7 @@ class Curation(object):
 
 		# Compute the alignment of the query to the profile using MAFFT
 		alignment = profile_dir+"/precomputed_alignment.fasta"
-		cmd = "mafft --add "+query+" --globalpair --maxiterate 1000 "+profile_dir+"/"+profile+" > "+alignment
+		cmd = "mafft --add "+query+parameter+profile_dir+"/"+profile+" > "+alignment
 		subprocess.call(cmd, shell = True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
 
 		# Parse boundary and lookup table text files
@@ -132,7 +144,10 @@ class Curation(object):
 		if self.mut_flags == []:
 			return
 
-		table6 = pd.read_csv(Table6, sep = '\t')
+		try:
+			table6 = pd.read_csv(Table6, sep = '\t')
+		except:
+			raise Exception("Invalid table6 directory and/or file")
 
 		# Loop through all detected flags
 		for flag in self.mut_flags:
@@ -273,7 +288,10 @@ class Curation(object):
 	@staticmethod
 	def parse_boundaryFile(strainName, boundaryFile):
 
-		boundary_types = open(boundaryFile, 'r').readlines()
+		try:
+			boundary_types = open(boundaryFile, 'r').readlines()
+		except:
+			raise Exception("Invalid boundaryFile directory and/or file")
 		boundary = ""
 		for line in boundary_types:	
 			if (line.startswith(strainName)):
@@ -298,7 +316,10 @@ class Curation(object):
 	@staticmethod
 	def parse_lookupTable(strainName, lookupTable):
 
-		lookup_open = open(lookupTable, 'r', encoding = "ISO-8859-1")
+		try:
+			lookup_open = open(lookupTable, 'r', encoding = "ISO-8859-1")
+		except:
+			raise Exception("Invalid lookupTable directory and/or file")
 		lookup_allowed = lookup_open.readlines()
 		strain_lookup = []
 		for line in lookup_allowed:	
@@ -591,11 +612,11 @@ class InDelSubs(object):
 		CTS3_end = list(CTS3['End'])[0] - 1
 
 		# Adjust the 5'/3' CTS start/end to accommidate for the non-keep length alignment
-		# by factoring in the nkip values
-		CTS5_start_adj = CTS5_start + len([i for i in self.nkip if i < CTS5_start])
-		CTS3_start_adj = CTS3_start + len([i for i in self.nkip if i < CTS3_start])
-		CTS5_end_adj = CTS5_end + len([i for i in self.nkip if i < CTS5_end])
-		CTS3_end_adj = CTS3_end + len([i for i in self.nkip if i < CTS3_end])
+		# by factoring in the positions of sequential deletions from the ins_groups
+		CTS5_start_adj = CTS5_start
+		CTS3_start_adj = CTS3_start + sum([len(self.ins_groups[i]) for i in range(len(self.ins_groups)) if self.ins_groups[i][0] < CTS3_start])
+		CTS5_end_adj = CTS5_end + sum([len(self.ins_groups[i]) for i in range(len(self.ins_groups)) if self.ins_groups[i][0] < CTS5_end])
+		CTS3_end_adj = CTS3_end + sum([len(self.ins_groups[i]) for i in range(len(self.ins_groups)) if self.ins_groups[i][0] < CTS3_end])
 
 		# Get the CTS regions of the query sequence
 		CTS5_query = self.query_seq[CTS5_start_adj:CTS5_end_adj+1]
@@ -721,7 +742,8 @@ class Blast(object):
 
 # Main program for running the whole script from commandline
 # Required argument: --query [QUERY FASTA]
-# Optional argument: --flag [mut/ambig/ins/del/sub] (ie, the type of flags to return)
+# Optional argument: --flag [muts/ambig/ins/del/sub] (ie, the type of flags to return)
+# Optional argument: --mafft_penalty [True/False] (ie, run MAFFT with alg applying gap penalty)
 if __name__ == "__main__":
 
 	parser = argparse.ArgumentParser()
@@ -730,12 +752,21 @@ if __name__ == "__main__":
 	parser.add_argument('--query', dest = 'query', type = str)
 	# Optional argument
 	parser.add_argument('--flag', dest = 'flag', type = str)
+	parser.add_argument('--mafft_penalty', dest = 'mafft_penalty', type = str)
 	args = parser.parse_args()
 
 	if (not args.query):
 		sys.exit("ERROR: No query sequence input")
 	if (args.flag and (args.flag != 'mut' and args.flag != 'ambig' and args.flag != 'ins' and args.flag != 'del' and args.flag != 'sub')):
 		sys.exit("ERROR: Invalid flag argument\n --flag [all/ambig/ins/del/sub]")
+	if (args.mafft_penalty and (args.mafft_penalty != 'True' and args.mafft_penalty != 'False')):
+		sys.exit("ERROR: Invalid MAFFT penalty argument\n --mafft_penalty [True/False]")
+	elif (args.mafft_penalty and (args.mafft_penalty == 'True')):
+		mafft_penalty = True
+	elif (args.mafft_penalty and (args.mafft_penalty == 'False')):
+		mafft_penalty = False
+	else:
+		mafft_penalty = True
 
 	for seq_record in SeqIO.parse(args.query, 'fasta'):
 		seq_id = str(seq_record.id)
@@ -743,7 +774,7 @@ if __name__ == "__main__":
 		seq_fasta = MolSeq(seq_id, seq).to_fasta()
 		with open('query.fasta', 'w') as f:	f.write(seq_fasta)
 		start = time.time()
-		cur = Curation('query.fasta')
+		cur = Curation('query.fasta', mafft_penalty = mafft_penalty)
 		if not args.flag:
 			print("Accession:", cur.get_accession())
 			print("Subtype:", cur.get_strain())
