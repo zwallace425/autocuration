@@ -21,41 +21,42 @@ class Curation(object):
 	# file, lookup table file, and a directory name specifying the location of all the profile fasta files.  If
 	# those required files are not inputted as arguments, the object navigates to the default location of these
 	# files.
-	def __init__(self, query, strainName = None, mafft_penalty = True, boundaryFile = "profiles/Flu_profile_boundaries_20181012.txt", 
-		lookupTable = "profiles/Flu_profile_lookupTable_20181203.txt", profile_dir = "profiles", output_dir = "outputs"):
+	def __init__(self, query, strain_name = None, align_alg = 'mafft', mafft_penalty = True, 
+		boundary_file = "profiles/Flu_profile_boundaries_20181012.txt", 
+		lookup_table = "profiles/Flu_profile_lookupTable_20181203.txt", 
+		profile_dir = "profiles", output_dir = "outputs"):
 
-		# Set the MAFFT parameter
-		if mafft_penalty:
-			# Set the gap penalty MAFFT parameter with --globalpair.  Can improve accuracy,but
-			# slows down the pipeline
-			parameter = ' --globalpair --maxiterate 1000 '
-		else:
-			# Don't use gap penalty option
-			parameter = ' --maxiterate 1000 '
+		# Alignment algorithm must be mafft or muscle
+		if align_alg != "mafft" and align_alg != "muscle":
+			sys.exit("\nInvaid alignment algorithm input\n")
 			
 		# Grab accession number and nucleotide sequence string for query sequence in the fasta file
 		accession, sequence = self.get_acc_and_seq(query)
 
-		# Only BLAST if strain name not passed to init
-		if strainName:
+		# Get the profile. Only BLAST if strain name not passed to init
+		if strain_name:
 			# Get the appropriate profile for the profile_dir based on the strain name
 			try:
-				profile = [filename for filename in os.listdir(profile_dir) if filename.startswith(strainName)][0]
+				profile = [filename for filename in os.listdir(profile_dir) if filename.startswith(strain_name)][0]
 			except:
-				raise Exception("Invalid profiles directory")
+				raise Exception("\nInvalid profiles directory\n")
 		else:
 			# BLAST query to determine the appropriate profile and strain name
 			b = Blast(query)
 			profile = b.get_profile()
 			identity = b.get_identity()
-			strainName = b.get_strain()
+			strain_name = b.get_strain()
 
 		# Check if BLAST result found profile. If not, abort the rest of the pipeline
 		if profile == "Unknown":
 			self.profile = "Unknown"
-			self.strainName = "Unknown"
+			self.strain_name = "Unknown"
 			self.accession = accession
 			return
+
+		# Parse boundary and lookup table text files
+		boundary_df = self.parse_boundary_file(strain_name, boundary_file)
+		lookup_df = self.parse_lookup_table(strain_name, lookup_table)
 
 		# Determine the ambiguity flags, if any
 		ambig_flags = []
@@ -67,15 +68,21 @@ class Curation(object):
 		if identity < 0.95:
 			ambig_flags.append("Excess-Dist")
 
-		# Compute the alignment of the query to the profile using MAFFT
+		# Compute the alignment of the query to the profile using MAFFT or MUSCLE
 		alignment = profile_dir+"/precomputed_alignment.fasta"
-		cmd = "mafft --add "+query+parameter+profile_dir+"/"+profile+" > "+alignment
+		if align_alg == 'mafft':
+			if mafft_penalty:
+				# Set the gap penalty MAFFT parameter with --globalpair.  Can improve accuracy, but
+				# slows down the pipeline
+				cmd = 'mafft --add '+query+' --globalpair --maxiterate 1000 '+profile_dir+'/'+profile+' > '+alignment
+			else:
+				# Don't use gap penalty option
+				cmd = 'mafft --add '+query+' --maxiterate 1000 '+profile_dir+'/'+profile+' > '+alignment
+		elif align_alg == 'muscle':
+			cmd = './muscle -maxiters 1000 -profile -in1 '+profile+' -in2 '+query+' -out '+alignment
 		subprocess.call(cmd, shell = True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
 
-		# Parse boundary and lookup table text files
-		boundary_df = self.parse_boundaryFile(strainName, boundaryFile)
-		lookup_df = self.parse_lookupTable(strainName, lookupTable)
-
+		# Initialize InDelSubs object to identify mutations from the alignment
 		muts = InDelSubs(alignment)
 		
 		# Get the Flags
@@ -95,7 +102,7 @@ class Curation(object):
 		self.sub_flags = sub_flags
 		self.ambig_flags = ambig_flags
 		self.profile = profile
-		self.strainName = strainName
+		self.strain_name = strain_name
 		self.accession = accession
 
 	# Return a table with all mutation flags occuring in the sequence, otherwise return 'Pass' if no flags
@@ -139,12 +146,12 @@ class Curation(object):
 		try:
 			table6 = pd.read_csv(Table6, sep = '\t')
 		except:
-			raise Exception("Invalid table6 directory and/or file")
+			raise Exception("\nInvalid table6 directory and/or file\n")
 
 		# Loop through all detected flags
 		for flag in self.mut_flags:
 			if (flag[0] == "5'NCR-ext") or (flag[0] == "3'NCR-ext"):
-				table6_profile = table6[(table6['PROFILE_NAME'] == self.profile) & (table6['FLU_SUBTYPE'] == self.strainName) & 
+				table6_profile = table6[(table6['PROFILE_NAME'] == self.profile) & (table6['FLU_SUBTYPE'] == self.strain_name) & 
 				(table6['AUTO_ALIGNMENT_ISSUE'] == flag[0])]
 				# Check if flag returns something already in the table
 				if not table6_profile.empty:
@@ -163,13 +170,13 @@ class Curation(object):
 						table6.at[index, 'ACCESSION_LIST'] = str(acc_list)
 
 				else:
-					table6_profile = pd.DataFrame({'PROFILE_NAME': [self.profile], 'STATUS': ["New"], 'FLU_SUBTYPE': [self.strainName], 
+					table6_profile = pd.DataFrame({'PROFILE_NAME': [self.profile], 'STATUS': ["New"], 'FLU_SUBTYPE': [self.strain_name], 
 						'AUTO_ALIGNMENT_ISSUE': [flag[0]], 'POS_PROFILE': [""], 'MUTATION_SUM'	: [""], 'ACCESSION_COUNT': [1],
 						'ACCESSION_LIST': [self.accession]})
 					table6 = pd.concat([table6, table6_profile], axis = 0)
 
 			else:
-				table6_profile = table6[(table6['PROFILE_NAME'] == self.profile) & (table6['FLU_SUBTYPE'] == self.strainName) & 
+				table6_profile = table6[(table6['PROFILE_NAME'] == self.profile) & (table6['FLU_SUBTYPE'] == self.strain_name) & 
 				(table6['AUTO_ALIGNMENT_ISSUE'] == flag[0]) & (table6['POS_PROFILE'] == flag[1])]
 				if not table6_profile.empty:
 					index = table6_profile.index[0]
@@ -200,7 +207,7 @@ class Curation(object):
 					mut_sum = ""
 					if flag[0] == "5'CTS-mut" or flag[0] == "3'CTS-mut":
 						mut_sum = flag[3]+':'+str(1)
-					table6_profile = pd.DataFrame({'PROFILE_NAME': [self.profile], 'STATUS': ["New"], 'FLU_SUBTYPE': [self.strainName], 
+					table6_profile = pd.DataFrame({'PROFILE_NAME': [self.profile], 'STATUS': ["New"], 'FLU_SUBTYPE': [self.strain_name], 
 						'AUTO_ALIGNMENT_ISSUE': [flag[0]], 'POS_PROFILE': [flag[1]], 'MUTATION_SUM'	: [mut_sum], 'ACCESSION_COUNT': [1],
 						'ACCESSION_LIST': [self.accession]})
 					table6 = pd.concat([table6, table6_profile], axis = 0)
@@ -253,7 +260,7 @@ class Curation(object):
 	# Return the strain name of the virus denoted as [Speicies]_[Segment #]_[Subtype]
 	def get_strain(self):
 
-		return(self.strainName)
+		return(self.strain_name)
 
 	# Return the accession number of the query sequence
 	def get_accession(self):
@@ -278,15 +285,15 @@ class Curation(object):
 
 	# Meant for parsing the boundary file to know the CTS, NCR, and CDS start and end regions of the profile
 	@staticmethod
-	def parse_boundaryFile(strainName, boundaryFile):
+	def parse_boundary_file(strain_name, boundary_file):
 
 		try:
-			boundary_types = open(boundaryFile, 'r').readlines()
+			boundary_types = open(boundary_file, 'r').readlines()
 		except:
-			raise Exception("Invalid boundaryFile directory and/or file")
+			raise Exception("\nInvalid boundary_file directory and/or file\n")
 		boundary = ""
 		for line in boundary_types:	
-			if (line.startswith(strainName)):
+			if (line.startswith(strain_name)):
 				boundary = line
 				break
 
@@ -306,16 +313,16 @@ class Curation(object):
 
 	# Meant to parse the lookup table so that we can use information for a specific strain.
 	@staticmethod
-	def parse_lookupTable(strainName, lookupTable):
+	def parse_lookup_table(strain_name, lookup_table):
 
 		try:
-			lookup_open = open(lookupTable, 'r', encoding = "ISO-8859-1")
+			lookup_open = open(lookup_table, 'r', encoding = "ISO-8859-1")
 		except:
-			raise Exception("Invalid lookupTable directory and/or file")
+			raise Exception("\nInvalid lookup_table directory and/or file\n")
 		lookup_allowed = lookup_open.readlines()
 		strain_lookup = []
 		for line in lookup_allowed:	
-			if (line.startswith(strainName)):
+			if (line.startswith(strain_name)):
 				line_attribs = line.split('\t')
 				flag = line_attribs[1]
 				start_end = line_attribs[2].split("..")

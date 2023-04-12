@@ -1,32 +1,37 @@
 # Main program for running the whole script from commandline
 # Required argument: --query [QUERY FASTA]
 # Optional argument: --flag [muts/ambig/ins/del/sub] (ie, the type of flags to return)
+# Optional argument: --align_alg [mafft/muscle] (ie, choice of alignment algorithm, mafft or muscle)
 # Optional argument: --mafft_penalty [True/False] (ie, run MAFFT with alg applying gap penalty)
-
-import sys
-import time
-import argparse
-from Bio import SeqIO
-from MolSeq import MolSeq
-from Curation import Curation
-
 if __name__ == "__main__":
 
 	parser = argparse.ArgumentParser()
 
 	# Required argument
 	parser.add_argument('--query', dest = 'query', type = str)
+	
 	# Optional argument
 	parser.add_argument('--flag', dest = 'flag', type = str)
+	parser.add_argument('--align_alg', dest = 'align_alg', type = str)
 	parser.add_argument('--mafft_penalty', dest = 'mafft_penalty', type = str)
 	args = parser.parse_args()
 
 	if (not args.query):
-		sys.exit("ERROR: No query sequence input")
+		sys.exit("\nERROR: No query sequence input\n")
 	if (args.flag and (args.flag != 'mut' and args.flag != 'ambig' and args.flag != 'ins' and args.flag != 'del' and args.flag != 'sub')):
-		sys.exit("ERROR: Invalid flag argument\n --flag [all/ambig/ins/del/sub]")
+		sys.exit("\nERROR: Invalid flag argument\n --flag [all/ambig/ins/del/sub]\n")
+	if (args.align_alg and (args.align_alg != 'mafft' and args.align_alg != 'muscle')):
+		sys.exit("\nERROR: Invalid alignment algorithm\n --align_alg [mafft/muscle]\n")
+	elif (args.align_alg and (args.align_alg == 'mafft')):
+		align_alg = 'mafft'
+	elif (args.align_alg and (args.align_alg == 'muscle')):
+		align_alg = 'muscle'
+	else:
+		align_alg = 'mafft'
+	if (args.align_alg and args.mafft_penalty and (args.align_alg != 'mafft')):
+		print("\nWARNING: --mafft_penalty ignored with --align_alg muscle\n")
 	if (args.mafft_penalty and (args.mafft_penalty != 'True' and args.mafft_penalty != 'False')):
-		sys.exit("ERROR: Invalid MAFFT penalty argument\n --mafft_penalty [True/False]")
+		sys.exit("\nERROR: Invalid MAFFT penalty argument\n --mafft_penalty [True/False]\n")
 	elif (args.mafft_penalty and (args.mafft_penalty == 'True')):
 		mafft_penalty = True
 	elif (args.mafft_penalty and (args.mafft_penalty == 'False')):
@@ -40,7 +45,7 @@ if __name__ == "__main__":
 		seq_fasta = MolSeq(seq_id, seq).to_fasta()
 		with open('query.fasta', 'w') as f:	f.write(seq_fasta)
 		start = time.time()
-		cur = Curation('query.fasta', mafft_penalty = mafft_penalty)
+		cur = Curation('query.fasta', align_alg = align_alg, mafft_penalty = mafft_penalty)
 		if not args.flag:
 			print("Accession:", cur.get_accession())
 			print("Subtype:", cur.get_strain())
