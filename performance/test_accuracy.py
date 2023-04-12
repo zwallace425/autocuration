@@ -11,12 +11,7 @@ from Bio import SeqIO
 
 test_file = sys.argv[1]
 results = sys.argv[2]
-penalty = sys.argv[3]
-
-if penalty == 'True':
-	penalty = True
-elif penalty == 'False':
-	penalty = False
+align_alg = sys.arg[3]
 
 count = 1
 evaluation = []
@@ -32,7 +27,7 @@ for seq_record in SeqIO.parse(test_file, 'fasta'):
 	
 	seq_fasta = ac.MolSeq(seq_desc, seq).to_fasta()
 	with open('query.fasta', 'w') as f:	f.write(seq_fasta)
-	curation = ac.Curation('query.fasta', mafft_penalty = penalty)
+	curation = ac.Curation('query.fasta', align_alg = align_alg)
 	
 	accession = curation.get_accession()
 	my_result = curation.mutation_flags()

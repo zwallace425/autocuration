@@ -14,7 +14,13 @@ and place in your absolute PATH or use conda install by running
 	
 	conda install -c bioconda mafft
 
-(3) To install the necessary dependencies, run the following in command line
+(3) MUSCLE can be used in lieu of the MAFFT alignment.  MUSCLE exits in this repo as an executable file
+and will get called if the pipeline runs MUSCLE instead of MAFFT.  However, this excecutable has been
+downloaded from Mac OSX 64 bit.  To download the appropriate MUSCLE v3.8.31 for the appropriate OS,
+see that downloads at https://drive5.com/muscle/downloads_v3.htm and follow instructions at
+https://drive5.com/muscle/manual/install.html
+
+(3) To install the rest of the necessary dependencies, run the following in command line
 	
 	source env_setup.sh
 
@@ -24,15 +30,20 @@ After navigating the cloned directory, the prefered way to run the pipeline via 
 
 	python Autocuration.py --query [Influenza FASTA sequence(s)]
 
-In running that command, the pipeline will output a curation report with designated artifact flags,
+The above command will run the pipeline using MAFFT incorporating iterative refinement with both WSP
+and consistency scores.  To run the pipeline using MUSCLE, execute the following command
+
+	python Autocuration.py --query [Influenza FASTA sequence(s)] --align_alg muscle  
+
+In running those commands, the pipeline will output a curation report with designated artifact flags,
 if any exist.  Additionally, running the pipeline will automatically update Dr. Macken's 'Table 6',
 which is a dynamically growing table book keeping all past and present autocuration flag results.
 That original table is found in the 'outputs' folder as Table6_Jan2019Release.txt but gets updated
 with runs of the pipeline and left in the same folder.  
 
 Along with autocuration, a key component of this pipeline is saving a pre-computed alignment of the 
-inputted query sequence.  This MAFFT alignment will get saved ONLY IF the sequence had no insertions. 
-This pre-computed alignment is saved in 'outputs' as 'ACCESSION_aligned.fasta'.
+inputted query sequence.  This alignment from MAFFT or MUSCLE will get saved ONLY IF the sequence had 
+no insertions. This pre-computed alignment is saved in 'outputs' as 'ACCESSION_aligned.fasta'.
 
 ## Profile Alignments, Lookup Table, and Boundary File
 
@@ -61,11 +72,11 @@ To recreate a BLAST database due to a new collection of profile alignments in th
 
 Disjoint sequence batches for Influenza A-D tagged with artifact flags in the FASTA metadata from the previous 
 version of the Autocuration pipeline were downloaded from the legacy Influenza Research Database.  The
-sequences from these four Influenza FASTA files were ran against our pipeline in 'test_accuracy.py', and the
-curation results were used to analyze precision, recall, and accuracy of our version of the Autocuration pipeline 
-relative to the results from the previous pipeline.  There are several precision, recall, and accuracy metrics 
-that need to used to evaluate this pipeline, and a thorough evaluation of this pipeline performance with each 
-of these metrics can be viewed in the notebook 'AnalyzeAccuracy.ipynb'.
+sequences from these four Influenza FASTA files were ran against our pipeline in 'performance/test_accuracy.py', 
+and the curation results were used to analyze precision, recall, and accuracy of our version of the Autocuration 
+pipeline relative to the results from the previous pipeline.  There are several precision, recall, and accuracy 
+metrics that need to used to evaluate this pipeline, and a thorough evaluation of this pipeline performance with 
+each of these metrics can be viewed in the notebook 'AnalyzeAccuracy.ipynb'.
 
 ## Pipeline Broken Down by Modules
 
