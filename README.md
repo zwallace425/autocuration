@@ -16,8 +16,8 @@ and place in your absolute PATH or use conda install by running
 
 (3) MUSCLE can be used in lieu of the MAFFT alignment.  MUSCLE exits in this repo as an executable file
 and will get called if the pipeline runs MUSCLE instead of MAFFT.  However, this excecutable has been
-downloaded from Mac OSX 64 bit.  To download the appropriate MUSCLE v3.8.31 for the appropriate OS,
-see that downloads at https://drive5.com/muscle/downloads_v3.htm and follow instructions at
+downloaded for Mac OSX 64 bit.  To download MUSCLE v3.8.31 for the appropriate OS,see that downloads 
+at https://drive5.com/muscle/downloads_v3.htm and follow instructions at
 https://drive5.com/muscle/manual/install.html
 
 (3) To install the rest of the necessary dependencies, run the following in command line
