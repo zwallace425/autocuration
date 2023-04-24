@@ -34,9 +34,9 @@ class Curation(object):
 		lookup_table = "profiles/Flu_profile_lookupTable_20181203.txt", 
 		profile_dir = "profiles", output_dir = "outputs"):
 
-		# Alignment algorithm must be mafft or muscle
-		if align_alg != "mafft" and align_alg != "muscle":
-			sys.exit("\nInvaid alignment algorithm input\n")
+		# Alignment algorithm must be mafft, muscle, or clustalo
+		if align_alg != "mafft" and align_alg != "muscle" and align_alg != 'clustalo':
+			sys.exit("\nInvaid alignment algorithm input\n\nMAFFT, MUSCLE, or CLUSTAL-OMEGA required")
 			
 		# Grab accession number and nucleotide sequence string for query sequence in the fasta file
 		accession, sequence = self.get_acc_and_seq(query)
@@ -87,7 +87,9 @@ class Curation(object):
 				# Don't use gap penalty option
 				cmd = 'mafft --add '+query+' --maxiterate 1000 '+profile_dir+'/'+profile+' > '+alignment
 		elif align_alg == 'muscle':
-			cmd = './muscle -maxiters 1000 -profile -in1 '+profile+' -in2 '+query+' -out '+alignment
+			cmd = './muscle -maxiters 1000 -profile -in1 '+profile_dir+'/'+profile+' -in2 '+query+' -out '+alignment
+		elif align_alg == 'clustalo':
+			cmd = './clustalo --force --iterations 1000 --profile1 '+profile_dir+'/'+profile+' --profile2 '+query+' --out '+alignment
 		subprocess.call(cmd, shell = True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
 
 		# Initialize InDelSubs object to identify mutations from the alignment
@@ -769,12 +771,14 @@ if __name__ == "__main__":
 		sys.exit("\nERROR: No query sequence input\n")
 	if (args.flag and (args.flag != 'mut' and args.flag != 'ambig' and args.flag != 'ins' and args.flag != 'del' and args.flag != 'sub')):
 		sys.exit("\nERROR: Invalid flag argument\n --flag [all/ambig/ins/del/sub]\n")
-	if (args.align_alg and (args.align_alg != 'mafft' and args.align_alg != 'muscle')):
-		sys.exit("\nERROR: Invalid alignment algorithm\n --align_alg [mafft/muscle]\n")
+	if (args.align_alg and (args.align_alg != 'mafft' and args.align_alg != 'muscle' and args.align_alg != 'clustalo')):
+		sys.exit("\nERROR: Invalid alignment algorithm\n --align_alg [mafft/muscle/clustalo]\n")
 	elif (args.align_alg and (args.align_alg == 'mafft')):
 		align_alg = 'mafft'
 	elif (args.align_alg and (args.align_alg == 'muscle')):
 		align_alg = 'muscle'
+	elif (args.align_alg and (args.align_alg == 'clustalo')):
+		align_alg = 'clustalo'	
 	else:
 		align_alg = 'mafft'
 	if (args.align_alg and args.mafft_penalty and (args.align_alg != 'mafft')):
