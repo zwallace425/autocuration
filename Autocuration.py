@@ -29,14 +29,8 @@ class Curation(object):
 	# file, lookup table file, and a directory name specifying the location of all the profile fasta files.  If
 	# those required files are not inputted as arguments, the object navigates to the default location of these
 	# files.
-	def __init__(self, query, strain_name = None, align_alg = 'mafft', mafft_penalty = True, 
-		boundary_file = "profiles/Flu_profile_boundaries_20181012.txt", 
-		lookup_table = "profiles/Flu_profile_lookupTable_20181203.txt", 
-		profile_dir = "profiles", output_dir = "outputs"):
-
-		# Alignment algorithm must be mafft, muscle, or clustalo
-		if align_alg != "mafft" and align_alg != "muscle" and align_alg != 'clustalo':
-			sys.exit("\nInvaid alignment algorithm input\n\nMAFFT, MUSCLE, or CLUSTAL-OMEGA required")
+	def __init__(self, query, strain_name = None, boundary_file = "profiles/Flu_profile_boundaries_20181012.txt", 
+		lookup_table = "profiles/Flu_profile_lookupTable_20181203.txt", profile_dir = "profiles", output_dir = "outputs"):
 			
 		# Grab accession number and nucleotide sequence string for query sequence in the fasta file
 		accession, sequence = self.get_acc_and_seq(query)
@@ -47,7 +41,7 @@ class Curation(object):
 			try:
 				profile = [filename for filename in os.listdir(profile_dir) if filename.startswith(strain_name)][0]
 			except:
-				raise Exception("\nInvalid profiles directory\n")
+				raise Exception("\nERROR: Invalid profiles directory or strain name\n")
 		else:
 			# BLAST query to determine the appropriate profile and strain name
 			b = Blast(query)
@@ -64,7 +58,7 @@ class Curation(object):
 
 		# Parse boundary and lookup table text files
 		boundary_df = self.parse_boundary_file(strain_name, boundary_file)
-		lookup_df = self.parse_lookup_table(strain_name, lookup_table)
+		lookup_df = self.parse_lookup_table(profile, lookup_table)
 
 		# Determine the ambiguity flags, if any
 		ambig_flags = []
@@ -76,20 +70,9 @@ class Curation(object):
 		if identity < 0.95:
 			ambig_flags.append("Excess-Dist")
 
-		# Compute the alignment of the query to the profile using MAFFT or MUSCLE
+		# Compute the alignment of the query to the profile using MUSCLE
 		alignment = profile_dir+"/precomputed_alignment.fasta"
-		if align_alg == 'mafft':
-			if mafft_penalty:
-				# Set the gap penalty MAFFT parameter with --globalpair.  Can improve accuracy, but
-				# slows down the pipeline
-				cmd = 'mafft --add '+query+' --globalpair --maxiterate 1000 '+profile_dir+'/'+profile+' > '+alignment
-			else:
-				# Don't use gap penalty option
-				cmd = 'mafft --add '+query+' --maxiterate 1000 '+profile_dir+'/'+profile+' > '+alignment
-		elif align_alg == 'muscle':
-			cmd = './muscle -maxiters 1000 -profile -in1 '+profile_dir+'/'+profile+' -in2 '+query+' -out '+alignment
-		elif align_alg == 'clustalo':
-			cmd = './clustalo --force --iterations 1000 --profile1 '+profile_dir+'/'+profile+' --profile2 '+query+' --out '+alignment
+		cmd = './muscle -maxiters 1000 -profile -in1 '+profile_dir+'/'+profile+' -in2 '+query+' -out '+alignment
 		subprocess.call(cmd, shell = True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
 
 		# Initialize InDelSubs object to identify mutations from the alignment
@@ -156,7 +139,7 @@ class Curation(object):
 		try:
 			table6 = pd.read_csv(Table6, sep = '\t')
 		except:
-			raise Exception("\nInvalid table6 directory and/or file\n")
+			raise Exception("\nERROR: Invalid table6 directory and/or file\n")
 
 		# Loop through all detected flags
 		for flag in self.mut_flags:
@@ -300,7 +283,7 @@ class Curation(object):
 		try:
 			boundary_types = open(boundary_file, 'r').readlines()
 		except:
-			raise Exception("\nInvalid boundary_file directory and/or file\n")
+			raise Exception("\nERROR: Invalid boundary_file directory and/or file\n")
 		boundary = ""
 		for line in boundary_types:	
 			if (line.startswith(strain_name)):
@@ -323,16 +306,16 @@ class Curation(object):
 
 	# Meant to parse the lookup table so that we can use information for a specific strain.
 	@staticmethod
-	def parse_lookup_table(strain_name, lookup_table):
+	def parse_lookup_table(profile, lookup_table):
 
 		try:
 			lookup_open = open(lookup_table, 'r', encoding = "ISO-8859-1")
 		except:
-			raise Exception("\nInvalid lookup_table directory and/or file\n")
+			raise Exception("\nERROR: Invalid lookup_table directory and/or file\n")
 		lookup_allowed = lookup_open.readlines()
-		strain_lookup = []
+		profile_lookup = []
 		for line in lookup_allowed:	
-			if (line.startswith(strain_name)):
+			if (line.startswith(profile)):
 				line_attribs = line.split('\t')
 				flag = line_attribs[1]
 				start_end = line_attribs[2].split("..")
@@ -343,13 +326,16 @@ class Curation(object):
 					start = int(start_end[0])
 					end = int(start_end[0])
 				lookup_df = pd.DataFrame({'Flag': [flag], 'Start': [start], 'End': [end]})
-				strain_lookup.append(lookup_df)
+				profile_lookup.append(lookup_df)
 
-		lookup_df = pd.concat(strain_lookup, ignore_index = True)
+		if profile_lookup != []:
+			lookup_df = pd.concat(profile_lookup, ignore_index = True)
+		else:
+			lookup_df = pd.DataFrame({'Flag': ['XXX'], 'Start': [-1], 'End': [-1]})
 
 		return(lookup_df)
 
-	# Save the mafft alignment if there were no insertions
+	# Save the MUSCLE alignment if there were no insertions
 	@staticmethod
 	def save_alignment(query_acc, alignment, output_dir):
 
@@ -752,8 +738,6 @@ class Blast(object):
 # Main program for running the whole script from commandline
 # Required argument: --query [QUERY FASTA]
 # Optional argument: --flag [muts/ambig/ins/del/sub] (ie, the type of flags to return)
-# Optional argument: --align_alg [mafft/muscle] (ie, choice of alignment algorithm, mafft or muscle)
-# Optional argument: --mafft_penalty [True/False] (ie, run MAFFT with alg applying gap penalty)
 if __name__ == "__main__":
 
 	parser = argparse.ArgumentParser()
@@ -763,34 +747,12 @@ if __name__ == "__main__":
 	
 	# Optional argument
 	parser.add_argument('--flag', dest = 'flag', type = str)
-	parser.add_argument('--align_alg', dest = 'align_alg', type = str)
-	parser.add_argument('--mafft_penalty', dest = 'mafft_penalty', type = str)
 	args = parser.parse_args()
 
 	if (not args.query):
 		sys.exit("\nERROR: No query sequence input\n")
 	if (args.flag and (args.flag != 'mut' and args.flag != 'ambig' and args.flag != 'ins' and args.flag != 'del' and args.flag != 'sub')):
 		sys.exit("\nERROR: Invalid flag argument\n --flag [all/ambig/ins/del/sub]\n")
-	if (args.align_alg and (args.align_alg != 'mafft' and args.align_alg != 'muscle' and args.align_alg != 'clustalo')):
-		sys.exit("\nERROR: Invalid alignment algorithm\n --align_alg [mafft/muscle/clustalo]\n")
-	elif (args.align_alg and (args.align_alg == 'mafft')):
-		align_alg = 'mafft'
-	elif (args.align_alg and (args.align_alg == 'muscle')):
-		align_alg = 'muscle'
-	elif (args.align_alg and (args.align_alg == 'clustalo')):
-		align_alg = 'clustalo'	
-	else:
-		align_alg = 'mafft'
-	if (args.align_alg and args.mafft_penalty and (args.align_alg != 'mafft')):
-		print("\nWARNING: --mafft_penalty ignored with --align_alg muscle\n")
-	if (args.mafft_penalty and (args.mafft_penalty != 'True' and args.mafft_penalty != 'False')):
-		sys.exit("\nERROR: Invalid MAFFT penalty argument\n --mafft_penalty [True/False]\n")
-	elif (args.mafft_penalty and (args.mafft_penalty == 'True')):
-		mafft_penalty = True
-	elif (args.mafft_penalty and (args.mafft_penalty == 'False')):
-		mafft_penalty = False
-	else:
-		mafft_penalty = True
 
 	for seq_record in SeqIO.parse(args.query, 'fasta'):
 		seq_id = str(seq_record.id)
@@ -798,7 +760,7 @@ if __name__ == "__main__":
 		seq_fasta = MolSeq(seq_id, seq).to_fasta()
 		with open('query.fasta', 'w') as f:	f.write(seq_fasta)
 		start = time.time()
-		cur = Curation('query.fasta', align_alg = align_alg, mafft_penalty = mafft_penalty)
+		cur = Curation('query.fasta')
 		if not args.flag:
 			print("Accession:", cur.get_accession())
 			print("Subtype:", cur.get_strain())

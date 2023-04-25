@@ -9,31 +9,21 @@ developed by JCVI/BV-BRC in collaboration with Dr. Catherine Macken at the Unver
 
 (1) python >=3.x is required
 
-(2) MAFFT is a required.  Please download MAFFT version 7.490 from https://mafft.cbrc.jp/alignment/software/
-and place in your absolute PATH or use conda install by running
-	
-	conda install -c bioconda mafft
+(2) MUSCLE v3.8.31 is required.  MUSCLE exits in this repo as an executable file and will get called when
+the pipeline runs.  However, this excecutable has been downloaded for Mac OSX 64 bit.  To download MUSCLE 
+v3.8.31 for the appropriate OS, see the downloads at https://drive5.com/muscle/downloads_v3.htm 
+and follow instructions at https://drive5.com/muscle/manual/install.html.  Be sure to place the MUSCLE 
+executable in the directory of this repo.
 
-(3) MUSCLE can be used in lieu of the MAFFT alignment.  MUSCLE exits in this repo as an executable file
-and will get called if the pipeline runs MUSCLE instead of MAFFT.  However, this excecutable has been
-downloaded for Mac OSX 64 bit.  To download MUSCLE v3.8.31 for the appropriate OS,see that downloads 
-at https://drive5.com/muscle/downloads_v3.htm and follow instructions at
-https://drive5.com/muscle/manual/install.html
-
-(3) To install the rest of the necessary dependencies, run the following in command line
+(3) To install the rest of the necessary dependencies, run the following in command line:
 	
 	source env_setup.sh
 
 ## Running the Pipeline and Generating Outputs
 
-After navigating the cloned directory, the prefered way to run the pipeline via the command line is with
+After navigating the cloned repository, the prefered way to run the pipeline via the command line is with:
 
 	python Autocuration.py --query [Influenza FASTA sequence(s)]
-
-The above command will run the pipeline using MAFFT incorporating iterative refinement with both WSP
-and consistency scores.  To run the pipeline using MUSCLE, execute the following command
-
-	python Autocuration.py --query [Influenza FASTA sequence(s)] --align_alg muscle  
 
 In running those commands, the pipeline will output a curation report with designated artifact flags,
 if any exist.  Additionally, running the pipeline will automatically update Dr. Macken's 'Table 6',
@@ -42,8 +32,8 @@ That original table is found in the 'outputs' folder as Table6_Jan2019Release.tx
 with runs of the pipeline and left in the same folder.  
 
 Along with autocuration, a key component of this pipeline is saving a pre-computed alignment of the 
-inputted query sequence.  This alignment from MAFFT or MUSCLE will get saved ONLY IF the sequence had 
-no insertions. This pre-computed alignment is saved in 'outputs' as 'ACCESSION_aligned.fasta'.
+inputted query sequence.  This alignment from MUSCLE will get saved ONLY IF the sequence had no 
+insertions. This pre-computed alignment is saved in 'outputs' as 'ACCESSION_aligned.fasta'.
 
 ## Profile Alignments, Lookup Table, and Boundary File
 
@@ -77,6 +67,9 @@ and the curation results were used to analyze precision, recall, and accuracy of
 pipeline relative to the results from the previous pipeline.  There are several precision, recall, and accuracy 
 metrics that need to used to evaluate this pipeline, and a thorough evaluation of this pipeline performance with 
 each of these metrics can be viewed in the notebook 'AnalyzeAccuracy.ipynb'.
+
+An original version of this pipeline used MAFFT instead of MUSCLE, so we include the performance results using
+MAFFT in this notebook.
 
 ## Pipeline Broken Down by Modules
 
