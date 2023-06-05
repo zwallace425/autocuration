@@ -9,6 +9,7 @@ import pandas as pd
 import numpy as np
 import subprocess
 from Bio import SeqIO
+from datetime import datetime
 from Blast import Blast
 from InDelSubs import InDelSubs
 from MolSeq import MolSeq
@@ -21,14 +22,8 @@ class Curation(object):
 	# file, lookup table file, and a directory name specifying the location of all the profile fasta files.  If
 	# those required files are not inputted as arguments, the object navigates to the default location of these
 	# files.
-	def __init__(self, query, strain_name = None, align_alg = 'mafft', mafft_penalty = True, 
-		boundary_file = "profiles/Flu_profile_boundaries_20181012.txt", 
-		lookup_table = "profiles/Flu_profile_lookupTable_20181203.txt", 
-		profile_dir = "profiles", output_dir = "outputs"):
-
-		# Alignment algorithm must be mafft or muscle
-		if align_alg != "mafft" and align_alg != "muscle":
-			sys.exit("\nInvaid alignment algorithm input\n")
+	def __init__(self, query, strain_name = None, boundary_file = "profiles/Flu_profile_boundaries_20181012.txt", 
+		lookup_table = "profiles/Flu_profile_lookupTable_20181203.txt", profile_dir = "profiles", output_dir = "outputs"):
 			
 		# Grab accession number and nucleotide sequence string for query sequence in the fasta file
 		accession, sequence = self.get_acc_and_seq(query)
@@ -39,7 +34,7 @@ class Curation(object):
 			try:
 				profile = [filename for filename in os.listdir(profile_dir) if filename.startswith(strain_name)][0]
 			except:
-				raise Exception("\nInvalid profiles directory\n")
+				raise Exception("\nERROR: Invalid profiles directory or strain name\n")
 		else:
 			# BLAST query to determine the appropriate profile and strain name
 			b = Blast(query)
@@ -56,7 +51,7 @@ class Curation(object):
 
 		# Parse boundary and lookup table text files
 		boundary_df = self.parse_boundary_file(strain_name, boundary_file)
-		lookup_df = self.parse_lookup_table(strain_name, lookup_table)
+		lookup_df = self.parse_lookup_table(profile, lookup_table)
 
 		# Determine the ambiguity flags, if any
 		ambig_flags = []
@@ -68,18 +63,9 @@ class Curation(object):
 		if identity < 0.95:
 			ambig_flags.append("Excess-Dist")
 
-		# Compute the alignment of the query to the profile using MAFFT or MUSCLE
+		# Compute the alignment of the query to the profile using MUSCLE
 		alignment = profile_dir+"/precomputed_alignment.fasta"
-		if align_alg == 'mafft':
-			if mafft_penalty:
-				# Set the gap penalty MAFFT parameter with --globalpair.  Can improve accuracy, but
-				# slows down the pipeline
-				cmd = 'mafft --add '+query+' --globalpair --maxiterate 1000 '+profile_dir+'/'+profile+' > '+alignment
-			else:
-				# Don't use gap penalty option
-				cmd = 'mafft --add '+query+' --maxiterate 1000 '+profile_dir+'/'+profile+' > '+alignment
-		elif align_alg == 'muscle':
-			cmd = './muscle -maxiters 1000 -profile -in1 '+profile+' -in2 '+query+' -out '+alignment
+		cmd = './muscle -maxiters 1000 -profile -in1 '+profile_dir+'/'+profile+' -in2 '+query+' -out '+alignment
 		subprocess.call(cmd, shell = True, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
 
 		# Initialize InDelSubs object to identify mutations from the alignment
@@ -146,7 +132,16 @@ class Curation(object):
 		try:
 			table6 = pd.read_csv(Table6, sep = '\t')
 		except:
-			raise Exception("\nInvalid table6 directory and/or file\n")
+			raise Exception("\nERROR: Invalid table6 directory and/or file\n")
+
+		# Revert MONTHLY_STATUS to Unchanged for those that were updated last month
+		today = datetime.today()
+		current_month = datetime.today().replace(day=1)
+		table6['LAST_UPDATED'] = pd.to_datetime(table6['LAST_UPDATED'], errors='coerce').dt.floor('d')
+		past_months = table6[(table6['LAST_UPDATED'] < current_month) & (table6['MONTHLY_STATUS'] != "Unchanged")]
+		for ind in past_months.index:
+			table6.at[ind, 'MONTHLY_STATUS'] = "Unchanged"
+			table6.at[ind, 'ACCESSION_MONTHLY_INCREASE'] = 0
 
 		# Loop through all detected flags
 		for flag in self.mut_flags:
@@ -156,7 +151,7 @@ class Curation(object):
 				# Check if flag returns something already in the table
 				if not table6_profile.empty:
 					index = table6_profile.index[0]
-					status = str(table6['STATUS'][index])
+					status = str(table6['MONTHLY_STATUS'][index])
 					acc_list = set(str(table6['ACCESSION_LIST'][index]).split(","))
 					if self.accession not in acc_list:
 						acc_list.add(self.accession)
@@ -165,14 +160,16 @@ class Curation(object):
 						acc_list = ",".join(acc_list)
 
 						if status == "Unchanged":
-							table6.at[index, 'STATUS'] = str("Updated")
+							table6.at[index, 'MONTHLY_STATUS'] = str("Updated")
+							table6.at[index, 'LAST_UPDATED'] = today
 						table6.at[index, 'ACCESSION_COUNT'] = int(table6['ACCESSION_COUNT'][index])+1
+						table6.at[index, 'ACCESSION_MONTHLY_INCREASE'] = int(table6['ACCESSION_MONTHLY_INCREASE'][index])+1
 						table6.at[index, 'ACCESSION_LIST'] = str(acc_list)
 
 				else:
-					table6_profile = pd.DataFrame({'PROFILE_NAME': [self.profile], 'STATUS': ["New"], 'FLU_SUBTYPE': [self.strain_name], 
-						'AUTO_ALIGNMENT_ISSUE': [flag[0]], 'POS_PROFILE': [""], 'MUTATION_SUM'	: [""], 'ACCESSION_COUNT': [1],
-						'ACCESSION_LIST': [self.accession]})
+					table6_profile = pd.DataFrame({'PROFILE_NAME': [self.profile], 'MONTHLY_STATUS': ["New"], 'LAST_UPDATED': [today], 
+						'FLU_SUBTYPE': [self.strain_name], 'AUTO_ALIGNMENT_ISSUE': [flag[0]], 'POS_PROFILE': [""], 'MUTATION_SUM': [""], 
+						'ACCESSION_COUNT': [1], 'ACCESSION_MONTHLY_INCREASE': [1], 'ACCESSION_LIST': [self.accession]})
 					table6 = pd.concat([table6, table6_profile], axis = 0)
 
 			else:
@@ -180,7 +177,7 @@ class Curation(object):
 				(table6['AUTO_ALIGNMENT_ISSUE'] == flag[0]) & (table6['POS_PROFILE'] == flag[1])]
 				if not table6_profile.empty:
 					index = table6_profile.index[0]
-					status = str(table6['STATUS'][index])
+					status = str(table6['MONTHLY_STATUS'][index])
 					acc_list = set(str(table6['ACCESSION_LIST'][index]).split(","))
 					if self.accession not in acc_list:
 						acc_list.add(self.accession)
@@ -189,8 +186,10 @@ class Curation(object):
 						acc_list = ",".join(acc_list)
 
 						if status == "Unchanged":
-							table6.at[index, 'STATUS'] = str("Updated")
+							table6.at[index, 'MONTHLY_STATUS'] = str("Updated")
+							table6.at[index, 'LAST_UPDATED'] = today
 						table6.at[index, 'ACCESSION_COUNT'] = int(table6['ACCESSION_COUNT'][index])+1
+						table6.at[index, 'ACCESSION_MONTHLY_INCREASE'] = int(table6['ACCESSION_MONTHLY_INCREASE'][index])+1
 						table6.at[index, 'ACCESSION_LIST'] = str(acc_list)
 
 						if flag[0] == "5'CTS-mut" or flag[0] == "3'CTS-mut":
@@ -207,9 +206,9 @@ class Curation(object):
 					mut_sum = ""
 					if flag[0] == "5'CTS-mut" or flag[0] == "3'CTS-mut":
 						mut_sum = flag[3]+':'+str(1)
-					table6_profile = pd.DataFrame({'PROFILE_NAME': [self.profile], 'STATUS': ["New"], 'FLU_SUBTYPE': [self.strain_name], 
-						'AUTO_ALIGNMENT_ISSUE': [flag[0]], 'POS_PROFILE': [flag[1]], 'MUTATION_SUM'	: [mut_sum], 'ACCESSION_COUNT': [1],
-						'ACCESSION_LIST': [self.accession]})
+					table6_profile = pd.DataFrame({'PROFILE_NAME': [self.profile], 'MONTHLY_STATUS': ["New"], 'LAST_UPDATED': [today], 
+						'FLU_SUBTYPE': [self.strain_name], 'AUTO_ALIGNMENT_ISSUE': [flag[0]], 'POS_PROFILE': [flag[1]], 'MUTATION_SUM': [mut_sum], 
+						'ACCESSION_COUNT': [1], 'ACCESSION_MONTHLY_INCREASE': [1], 'ACCESSION_LIST': [self.accession]})
 					table6 = pd.concat([table6, table6_profile], axis = 0)
 
 		table6 = table6.sort_values(by = ['PROFILE_NAME', 'ACCESSION_COUNT'], ascending = [True, False]).reset_index(drop=True)
@@ -290,7 +289,7 @@ class Curation(object):
 		try:
 			boundary_types = open(boundary_file, 'r').readlines()
 		except:
-			raise Exception("\nInvalid boundary_file directory and/or file\n")
+			raise Exception("\nERROR: Invalid boundary_file directory and/or file\n")
 		boundary = ""
 		for line in boundary_types:	
 			if (line.startswith(strain_name)):
@@ -313,16 +312,16 @@ class Curation(object):
 
 	# Meant to parse the lookup table so that we can use information for a specific strain.
 	@staticmethod
-	def parse_lookup_table(strain_name, lookup_table):
+	def parse_lookup_table(profile, lookup_table):
 
 		try:
 			lookup_open = open(lookup_table, 'r', encoding = "ISO-8859-1")
 		except:
-			raise Exception("\nInvalid lookup_table directory and/or file\n")
+			raise Exception("\nERROR: Invalid lookup_table directory and/or file\n")
 		lookup_allowed = lookup_open.readlines()
-		strain_lookup = []
+		profile_lookup = []
 		for line in lookup_allowed:	
-			if (line.startswith(strain_name)):
+			if (line.startswith(profile)):
 				line_attribs = line.split('\t')
 				flag = line_attribs[1]
 				start_end = line_attribs[2].split("..")
@@ -333,13 +332,16 @@ class Curation(object):
 					start = int(start_end[0])
 					end = int(start_end[0])
 				lookup_df = pd.DataFrame({'Flag': [flag], 'Start': [start], 'End': [end]})
-				strain_lookup.append(lookup_df)
+				profile_lookup.append(lookup_df)
 
-		lookup_df = pd.concat(strain_lookup, ignore_index = True)
+		if profile_lookup != []:
+			lookup_df = pd.concat(profile_lookup, ignore_index = True)
+		else:
+			lookup_df = pd.DataFrame({'Flag': ['XXX'], 'Start': [-1], 'End': [-1]})
 
 		return(lookup_df)
 
-	# Save the mafft alignment if there were no insertions
+	# Save the MUSCLE alignment if there were no insertions
 	@staticmethod
 	def save_alignment(query_acc, alignment, output_dir):
 

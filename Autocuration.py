@@ -713,12 +713,6 @@ class Blast(object):
 		cmdline = NcbiblastnCommandline(cmd=blastn_cmd, query=query, db=blast_db, outfmt=5, out=blast_result)
 		stdout, stderr = cmdline()
 
-		#results = pd.read_csv(blast_result, sep="\t")
-		#headers = ['query', 'subject','pc_identity', 'aln_length', 'mismatches', 'gaps_opened','query_start', 'query_end', 'subject_start', 'subject_end','e_value', 'bitscore']
-
-		#results.columns = headers
-		#print(results)
-
 		result_handle = open(blast_result)
 		for result in NCBIXML.parse(result_handle):
 			if len(result.alignments) > 0:
