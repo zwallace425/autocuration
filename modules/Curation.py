@@ -134,14 +134,17 @@ class Curation(object):
 		except:
 			raise Exception("\nERROR: Invalid table6 directory and/or file\n")
 
-		# Revert MONTHLY_STATUS to Unchanged for those that were updated last month
+		# Revert STATUS_THIS_MONTH to Unchanged for those that were updated last month
+		# Revert CURRENT_MONTH_INCREASE count to zero if new month approached
+		# Update PAST_MONTH_INCREASE count to the value of CURRENT_MONTH_INCREASE
 		today = datetime.today()
 		current_month = datetime.today().replace(day=1)
 		table6['LAST_UPDATED'] = pd.to_datetime(table6['LAST_UPDATED'], errors='coerce').dt.floor('d')
-		past_months = table6[(table6['LAST_UPDATED'] < current_month) & (table6['MONTHLY_STATUS'] != "Unchanged")]
+		past_months = table6[(table6['LAST_UPDATED'] < current_month) & (table6['STATUS_THIS_MONTH'] != "Unchanged")]
 		for ind in past_months.index:
-			table6.at[ind, 'MONTHLY_STATUS'] = "Unchanged"
-			table6.at[ind, 'ACCESSION_MONTHLY_INCREASE'] = 0
+			table6.at[ind, 'STATUS_THIS_MONTH'] = "Unchanged"
+			table6.at[ind, 'PAST_MONTH_INCREASE'] = int(table6['CURRENT_MONTH_INCREASE'][ind])
+			table6.at[ind, 'CURRENT_MONTH_INCREASE'] = 0
 
 		# Loop through all detected flags
 		for flag in self.mut_flags:
@@ -151,7 +154,7 @@ class Curation(object):
 				# Check if flag returns something already in the table
 				if not table6_profile.empty:
 					index = table6_profile.index[0]
-					status = str(table6['MONTHLY_STATUS'][index])
+					status = str(table6['STATUS_THIS_MONTH'][index])
 					acc_list = set(str(table6['ACCESSION_LIST'][index]).split(","))
 					if self.accession not in acc_list:
 						acc_list.add(self.accession)
@@ -160,16 +163,16 @@ class Curation(object):
 						acc_list = ",".join(acc_list)
 
 						if status == "Unchanged":
-							table6.at[index, 'MONTHLY_STATUS'] = str("Updated")
+							table6.at[index, 'STATUS_THIS_MONTH'] = str("Updated")
 							table6.at[index, 'LAST_UPDATED'] = today
-						table6.at[index, 'ACCESSION_COUNT'] = int(table6['ACCESSION_COUNT'][index])+1
-						table6.at[index, 'ACCESSION_MONTHLY_INCREASE'] = int(table6['ACCESSION_MONTHLY_INCREASE'][index])+1
+						table6.at[index, 'ACCESSION_TOTAL'] = int(table6['ACCESSION_TOTAL'][index])+1
+						table6.at[index, 'CURRENT_MONTH_INCREASE'] = int(table6['CURRENT_MONTH_INCREASE'][index])+1
 						table6.at[index, 'ACCESSION_LIST'] = str(acc_list)
 
 				else:
-					table6_profile = pd.DataFrame({'PROFILE_NAME': [self.profile], 'MONTHLY_STATUS': ["New"], 'LAST_UPDATED': [today], 
+					table6_profile = pd.DataFrame({'PROFILE_NAME': [self.profile], 'STATUS_THIS_MONTH': ["New"], 'LAST_UPDATED': [today], 
 						'FLU_SUBTYPE': [self.strain_name], 'AUTO_ALIGNMENT_ISSUE': [flag[0]], 'POS_PROFILE': [""], 'MUTATION_SUM': [""], 
-						'ACCESSION_COUNT': [1], 'ACCESSION_MONTHLY_INCREASE': [1], 'ACCESSION_LIST': [self.accession]})
+						'ACCESSION_TOTAL': [1], 'CURRENT_MONTH_INCREASE': [1], 'ACCESSION_LIST': [self.accession]})
 					table6 = pd.concat([table6, table6_profile], axis = 0)
 
 			else:
@@ -177,7 +180,7 @@ class Curation(object):
 				(table6['AUTO_ALIGNMENT_ISSUE'] == flag[0]) & (table6['POS_PROFILE'] == flag[1])]
 				if not table6_profile.empty:
 					index = table6_profile.index[0]
-					status = str(table6['MONTHLY_STATUS'][index])
+					status = str(table6['STATUS_THIS_MONTH'][index])
 					acc_list = set(str(table6['ACCESSION_LIST'][index]).split(","))
 					if self.accession not in acc_list:
 						acc_list.add(self.accession)
@@ -186,10 +189,10 @@ class Curation(object):
 						acc_list = ",".join(acc_list)
 
 						if status == "Unchanged":
-							table6.at[index, 'MONTHLY_STATUS'] = str("Updated")
+							table6.at[index, 'STATUS_THIS_MONTH'] = str("Updated")
 							table6.at[index, 'LAST_UPDATED'] = today
-						table6.at[index, 'ACCESSION_COUNT'] = int(table6['ACCESSION_COUNT'][index])+1
-						table6.at[index, 'ACCESSION_MONTHLY_INCREASE'] = int(table6['ACCESSION_MONTHLY_INCREASE'][index])+1
+						table6.at[index, 'ACCESSION_TOTAL'] = int(table6['ACCESSION_TOTAL'][index])+1
+						table6.at[index, 'CURRENT_MONTH_INCREASE'] = int(table6['CURRENT_MONTH_INCREASE'][index])+1
 						table6.at[index, 'ACCESSION_LIST'] = str(acc_list)
 
 						if flag[0] == "5'CTS-mut" or flag[0] == "3'CTS-mut":
@@ -206,12 +209,12 @@ class Curation(object):
 					mut_sum = ""
 					if flag[0] == "5'CTS-mut" or flag[0] == "3'CTS-mut":
 						mut_sum = flag[3]+':'+str(1)
-					table6_profile = pd.DataFrame({'PROFILE_NAME': [self.profile], 'MONTHLY_STATUS': ["New"], 'LAST_UPDATED': [today], 
+					table6_profile = pd.DataFrame({'PROFILE_NAME': [self.profile], 'STATUS_THIS_MONTH': ["New"], 'LAST_UPDATED': [today], 
 						'FLU_SUBTYPE': [self.strain_name], 'AUTO_ALIGNMENT_ISSUE': [flag[0]], 'POS_PROFILE': [flag[1]], 'MUTATION_SUM': [mut_sum], 
-						'ACCESSION_COUNT': [1], 'ACCESSION_MONTHLY_INCREASE': [1], 'ACCESSION_LIST': [self.accession]})
+						'ACCESSION_TOTAL': [1], 'CURRENT_MONTH_INCREASE': [1], 'ACCESSION_LIST': [self.accession]})
 					table6 = pd.concat([table6, table6_profile], axis = 0)
 
-		table6 = table6.sort_values(by = ['PROFILE_NAME', 'ACCESSION_COUNT'], ascending = [True, False]).reset_index(drop=True)
+		table6 = table6.sort_values(by = ['PROFILE_NAME', 'ACCESSION_TOTAL'], ascending = [True, False]).reset_index(drop=True)
 		table6.to_csv(Table6, sep = '\t', index = False)
 
 

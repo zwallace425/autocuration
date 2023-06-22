@@ -29,7 +29,8 @@ In running those commands, the pipeline will output a curation report with desig
 if any exist.  Additionally, running the pipeline will automatically update Dr. Macken's 'Table 6',
 which is a dynamically growing table book keeping all past and present autocuration flag results.
 That original table is found in the `outputs` folder as `Table6_Jan2019Release.txt` but gets updated
-with runs of the pipeline and left in the same folder.  
+with runs of the pipeline and left in the same folder.  However, a user can input an alternative table6
+file by adjusting an optional `--table6` argument followed by a table6 file path.
 
 Along with autocuration, a key component of this pipeline is saving a pre-computed alignment of the 
 inputted query sequence.  This alignment from MUSCLE will get saved ONLY IF the sequence had no 
