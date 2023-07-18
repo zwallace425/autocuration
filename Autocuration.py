@@ -285,7 +285,7 @@ class Curation(object):
 			metadata = str(seq_record.id)
 			sequence = str(seq_record.seq).strip()
 		
-		acc = re.split(r'[^a-zA-Z0-9\s\w]+', metadata)
+		acc = re.split(r'[^a-zA-Z0-9\s\w-]+', metadata)
 		if re.search(r'[a-zA-Z]+', acc[0]) and re.search(r'[0-9]+', acc[0]):
 			accession = acc[0]
 		else:
