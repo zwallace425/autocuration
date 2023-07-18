@@ -103,6 +103,7 @@ class Curation(object):
 	# However, if no profile alignment was found in BLAST step, return 'Unknown'
 	def mutation_flags(self):
 
+		# Profile not known, just return unknown for mutation flags
 		if self.profile == "Unknown":
 			return("Unknown")
 
@@ -116,6 +117,7 @@ class Curation(object):
 	# If no profile alignment was found in BLAST step, return 'Excess-Dist'
 	def ambiguity_flags(self):
 
+		# Since profile not known, sequence must be very different and therefore ambiguous
 		if self.profile == "Unknown":
 			return("Excess-Dist")
 
@@ -123,6 +125,23 @@ class Curation(object):
 			return("Pass")
 		else:
 			return(self.ambig_flags)
+
+	# Return the summary flag of the input query sequence
+	# If ambiguity flags then 'Ambig-Seq' summary flag; if any CDS flags then 'Flag-CDS' summary flag;
+	# if only CTS/NCR flags then 'Flag-NCR'; else 'Pass'
+	def summary_flag(self):
+
+		# If profile not known, sequence must be very different and therefore ambiguous
+		if self.profile == "Unknown" or self.ambig_flags:
+			return("Ambig-Seq")
+
+		# Logical ordering of what to return for summary flags
+		if True in [True for flag in self.mut_flags if "CDS" in flag[0]]:
+			return("Flag-CDS")
+		elif True in [True for flag in self.mut_flags if "NCR" in flag[0] or "CTS" in flag[0]]:
+			return("Flag-NCR")	
+		else:
+			return("Pass")
 
 	# Update Dr. Macken's Table 6 for curation bookeeping
 	def update_table6(self, Table6 = 'outputs/Table6_Jan2019Release.txt'):
@@ -456,7 +475,7 @@ class InDelSubs(object):
 			seq_dashes = set([i for i, ltr in enumerate(seq) if ltr == "-"])
 			profile_dash_union = profile_dash_union.union(seq_dashes)
 
-
+		# Required for computing the insertions positions
 		profile_dash_intsct = first_seq_dashes
 		for seq in profile_seqs_minus:
 			seq_dashes = set([i for i, ltr in enumerate(seq) if ltr == "-"])
@@ -617,7 +636,7 @@ class InDelSubs(object):
 		CTS5 = boundary_df[(boundary_df['Region'] == 'CTS5')]
 		CTS3 = boundary_df[(boundary_df['Region'] == 'CTS3')]
 
-		# Get 5'/3' CTS start/end and adjust zero basing
+		# Get 5'/3' CTS start/end and adjust zero basing by subtracting 1
 		CTS5_start = list(CTS5['Start'])[0] - 1
 		CTS3_start = list(CTS3['Start'])[0] - 1
 		CTS5_end = list(CTS5['End'])[0] - 1
@@ -787,6 +806,7 @@ if __name__ == "__main__":
 		if not args.flag:
 			print("Accession:", cur.get_accession())
 			print("Subtype:", cur.get_strain())
+			print("Summary Flag:", cur.summary_flag())
 			print("Ambiguity Flags:", cur.ambiguity_flags())
 			print("Mutation Flags:\n", cur.mutation_flags())
 			print('\n')
@@ -798,21 +818,25 @@ if __name__ == "__main__":
 		elif args.flag == 'ambig':
 			print("Accession:", cur.get_accession())
 			print("Subtype:", cur.get_strain())
+			print("Summary Flag:", cur.summary_flag())
 			print("Ambiguity Flags:", cur.ambiguity_flags())
 			print('\n')
 		elif args.flag == 'ins':
 			print("Accession:", cur.get_accession())
 			print("Subtype:", cur.get_strain())
+			print("Summary Flag:", cur.summary_flag())
 			print("Insertion Flags:\n", cur.insertion_flags())
 			print('\n')
 		elif args.flag == 'del':
 			print("Accession:", cur.get_accession())
 			print("Subtype:", cur.get_strain())
+			print("Summary Flag:", cur.summary_flag())
 			print("Deletion Flags:\n", cur.deletion_flags())
 			print('\n')
 		elif args.flag == 'sub':
 			print("Accession:", cur.get_accession())
 			print("Subtype:", cur.get_strain())
+			print("Summary Flag:", cur.summary_flag())
 			print("Substitution Flags:\n", cur.substitution_flags())
 			print('\n')
 		cur.update_table6(Table6 = table6)
