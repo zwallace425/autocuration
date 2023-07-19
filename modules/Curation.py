@@ -95,6 +95,7 @@ class Curation(object):
 	# However, if no profile alignment was found in BLAST step, return 'Unknown'
 	def mutation_flags(self):
 
+		# Profile not known, just return unknown for mutation flags
 		if self.profile == "Unknown":
 			return("Unknown")
 
@@ -108,6 +109,7 @@ class Curation(object):
 	# If no profile alignment was found in BLAST step, return 'Excess-Dist'
 	def ambiguity_flags(self):
 
+		# Since profile not known, sequence must be very different and therefore ambiguous
 		if self.profile == "Unknown":
 			return("Excess-Dist")
 
@@ -115,6 +117,23 @@ class Curation(object):
 			return("Pass")
 		else:
 			return(self.ambig_flags)
+
+	# Return the summary flag of the input query sequence
+	# If ambiguity flags then 'Ambig-Seq' summary flag; if any CDS flags then 'Flag-CDS' summary flag;
+	# if only CTS/NCR flags then 'Flag-NCR'; else 'Pass'
+	def summary_flag(self):
+
+		# If profile not known, sequence must be very different and therefore ambiguous
+		if self.profile == "Unknown" or self.ambig_flags:
+			return("Ambig-Seq")
+
+		# Logical ordering of what to return for summary flags
+		if True in [True for flag in self.mut_flags if "CDS" in flag[0]]:
+			return("Flag-CDS")
+		elif True in [True for flag in self.mut_flags if "NCR" in flag[0] or "CTS" in flag[0]]:
+			return("Flag-NCR")	
+		else:
+			return("Pass")
 
 	# Update Dr. Macken's Table 6 for curation bookeeping
 	def update_table6(self, Table6 = 'outputs/Table6_Jan2019Release.txt'):
@@ -277,7 +296,7 @@ class Curation(object):
 			metadata = str(seq_record.id)
 			sequence = str(seq_record.seq).strip()
 		
-		acc = re.split(r'[^a-zA-Z0-9\s\w]+', metadata)
+		acc = re.split(r'[^a-zA-Z0-9\s\w-]+', metadata)
 		if re.search(r'[a-zA-Z]+', acc[0]) and re.search(r'[0-9]+', acc[0]):
 			accession = acc[0]
 		else:

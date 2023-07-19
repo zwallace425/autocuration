@@ -41,7 +41,7 @@ class InDelSubs(object):
 			seq_dashes = set([i for i, ltr in enumerate(seq) if ltr == "-"])
 			profile_dash_union = profile_dash_union.union(seq_dashes)
 
-
+		# Required for computing the insertions positions
 		profile_dash_intsct = first_seq_dashes
 		for seq in profile_seqs_minus:
 			seq_dashes = set([i for i, ltr in enumerate(seq) if ltr == "-"])
@@ -202,7 +202,7 @@ class InDelSubs(object):
 		CTS5 = boundary_df[(boundary_df['Region'] == 'CTS5')]
 		CTS3 = boundary_df[(boundary_df['Region'] == 'CTS3')]
 
-		# Get 5'/3' CTS start/end and adjust zero basing
+		# Get 5'/3' CTS start/end and adjust zero basing by subtracting 1
 		CTS5_start = list(CTS5['Start'])[0] - 1
 		CTS3_start = list(CTS3['Start'])[0] - 1
 		CTS5_end = list(CTS5['End'])[0] - 1
