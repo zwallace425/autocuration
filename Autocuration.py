@@ -729,7 +729,7 @@ class Blast(object):
 	# can be passed into the init function.  The default parameters are the default locations of the
 	# blast database and blast command line program.
 	def __init__(self, query, blast_db = 'blast/flu_profiles_db.fasta', blastn_cmd = 'blast/blastn', 
-		blast_result = 'test_files/blast_result.txt'):
+		blast_result = 'blast/blast_result.xml'):
 
 		# Blast query against database of profile sequences
 		cmdline = NcbiblastnCommandline(cmd=blastn_cmd, query=query, db=blast_db, outfmt=5, out=blast_result)

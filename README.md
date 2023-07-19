@@ -53,11 +53,24 @@ A key step in this pipeline is determining the subtype of the query sequence (Sp
 this is done by BLASTing all incoming query sequences against a database of all sequences making up the
 profiles.  This BLAST database of profile sequences is stored in the `blast` folder, along with the BLAST
 command-line executables for making a BLAST database and running the BLAST job.  This said, whenever the
-profile alignments are updated, the BLAST database MUST be updated.
+profile alignments are updated, the BLAST database MUST be rebuilt.  The other time the BLAST database
+needs to be reconstructed is when new sequences are added to the `flu_profiles_db.fasta` file to make the
+BLAST database more comprehensive. 
+
+### BLAST DB Upate 1: New Profile Alignments
 
 To recreate a BLAST database due to a new collection of profile alignments in the `profiles` folder, run
+the following from the root directory:
 
 	python build_blast_db.py
+
+### BLAST DB Update 2: New Sequences in the Database
+
+To make the BLAST database more comprehensive by adding additional Flu sequences, add the sequences to the
+`flu_profile_db.fasta` file and then run the following within the `blast` directory:
+
+	./makeblastdb -in flu_profiles_db.fasta -dbtype nucl
+
 
 ## Pipeline Performance
 
