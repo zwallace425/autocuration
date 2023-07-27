@@ -68,7 +68,7 @@ class Curation(object):
 			ambig_flags.append("Excess-N")
 		if molseq.get_ambig_content() > 0.005:
 			ambig_flags.append("Excess-Ambig")
-		if identity < 0.95:
+		if identity < 0.90:
 			ambig_flags.append("Excess-Dist")
 
 		# Compute the alignment of the query to the profile using MUSCLE
