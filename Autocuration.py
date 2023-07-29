@@ -53,6 +53,7 @@ class Curation(object):
 		# Check if BLAST result found profile. If not, abort the rest of the pipeline
 		if profile == "Unknown":
 			self.profile = "Unknown"
+			self.identity = "Unknown"
 			self.strain_name = "Unknown"
 			self.accession = accession
 			return
@@ -96,6 +97,7 @@ class Curation(object):
 		self.sub_flags = sub_flags
 		self.ambig_flags = ambig_flags
 		self.profile = profile
+		self.identity = identity
 		self.strain_name = strain_name
 		self.accession = accession
 
@@ -285,6 +287,14 @@ class Curation(object):
 	def get_profile(self):
 
 		return(self.profile)
+
+	# Return the percent identity match to the top hit from the BLAST result
+	def get_identity(self):
+
+		if self.identity == "Unknown":
+			return(self.identity)
+		else:
+			return(round(self.identity, 3))
 	
 	# Return the strain name of the virus denoted as [Speicies]_[Segment #]_[Subtype]
 	def get_strain(self):
@@ -742,7 +752,7 @@ class Blast(object):
 				identity = float(result.alignments[0].hsps[0].identities)/float(result.alignments[0].hsps[0].align_length)
 			else:
 				profile = "Unknown"
-				identity = 0
+				identity = "Unknown"
 			break
 
 		self.profile = profile
