@@ -69,7 +69,7 @@ class Curation(object):
 			ambig_flags.append("Excess-N")
 		if molseq.get_ambig_content() > 0.005:
 			ambig_flags.append("Excess-Ambig")
-		if identity < 0.90:
+		if identity < 0.80:
 			ambig_flags.append("Excess-Dist")
 
 		# Compute the alignment of the query to the profile using MUSCLE
@@ -816,6 +816,7 @@ if __name__ == "__main__":
 		if not args.flag:
 			print("Accession:", cur.get_accession())
 			print("Subtype:", cur.get_strain())
+			print("Percent Identity:", cur.get_identity())
 			print("Summary Flag:", cur.summary_flag())
 			print("Ambiguity Flags:", cur.ambiguity_flags())
 			print("Mutation Flags:\n", cur.mutation_flags())
@@ -823,29 +824,34 @@ if __name__ == "__main__":
 		elif args.flag == 'mut':
 			print("Accession:", cur.get_accession())
 			print("Subtype:", cur.get_strain())
+			print("Percent Identity:", cur.get_identity())
 			print("Mutation Flags:\n", cur.mutation_flags())
 			print('\n')
 		elif args.flag == 'ambig':
 			print("Accession:", cur.get_accession())
 			print("Subtype:", cur.get_strain())
+			print("Percent Identity:", cur.get_identity())
 			print("Summary Flag:", cur.summary_flag())
 			print("Ambiguity Flags:", cur.ambiguity_flags())
 			print('\n')
 		elif args.flag == 'ins':
 			print("Accession:", cur.get_accession())
 			print("Subtype:", cur.get_strain())
+			print("Percent Identity:", cur.get_identity())
 			print("Summary Flag:", cur.summary_flag())
 			print("Insertion Flags:\n", cur.insertion_flags())
 			print('\n')
 		elif args.flag == 'del':
 			print("Accession:", cur.get_accession())
 			print("Subtype:", cur.get_strain())
+			print("Percent Identity:", cur.get_identity())
 			print("Summary Flag:", cur.summary_flag())
 			print("Deletion Flags:\n", cur.deletion_flags())
 			print('\n')
 		elif args.flag == 'sub':
 			print("Accession:", cur.get_accession())
 			print("Subtype:", cur.get_strain())
+			print("Percent Identity:", cur.get_identity())
 			print("Summary Flag:", cur.summary_flag())
 			print("Substitution Flags:\n", cur.substitution_flags())
 			print('\n')
