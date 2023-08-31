@@ -6,7 +6,8 @@ the need for correcting the sequencing.  The methods for discovering artifact fl
 developed by JCVI/BV-BRC in collaboration with Dr. Catherine Macken at the University of Auckland.
 
 In general, Influenza artifact flags are defined based on the following table.  These definitions very
-much provide the backbone for developing the algorithms to go about curating Influenza sequences.
+much provide the backbone for developing the algorithms to go about curating Influenza sequences.  In
+addition, the pipeline also provides flags for alerting various kinds of sequence ambiguity.
 
 ![Alt text](Artifact_Flags.png)
 
