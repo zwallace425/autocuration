@@ -5,6 +5,11 @@ flags are meant for alerting discrepancies that have been discovered in the geno
 the need for correcting the sequencing.  The methods for discovering artifact flags in the sequence were
 developed by JCVI/BV-BRC in collaboration with Dr. Catherine Macken at the University of Auckland.
 
+In general, Influenza artifact flags are defined based on the following table.  These definitions very
+much provide the backbone for developing the algorithms to go about curating Influenza sequences.
+
+![Alt text](Artifact_Flags.png)
+
 ## Pipeline Dependencies
 
 (1) python >=3.x is required
