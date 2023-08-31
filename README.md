@@ -9,19 +9,20 @@ developed by JCVI/BV-BRC in collaboration with Dr. Catherine Macken at the Unive
 
 (1) python >=3.x is required
 
-(2) MUSCLE v3.8.31 is required.  MUSCLE exits in this repo as an executable file and will get called when
+(2) MUSCLE v3.8.31 is required.  MUSCLE exists in this repo as an executable file and will get called when
 the pipeline runs.  However, this executable has been downloaded for Mac OSX 64-bit.  To download MUSCLE 
 v3.8.31 for the appropriate OS, see the downloads at https://drive5.com/muscle/downloads_v3.htm 
 and follow instructions at https://drive5.com/muscle/manual/install.html.  Be sure to place the MUSCLE 
 executable in the directory of this repo.
 
-(3) To install the rest of the necessary dependencies, run the following in the command line:
+(3) All of the necessary dependencies are found in `env_setup.sh`.  To install these necessary dependencies, 
+run the following in the command line:
 	
 	source env_setup.sh
 
 ## Running the Pipeline and Generating Outputs
 
-After navigating the cloned repository, the preferred way to run the pipeline is via the root directory with:
+After navigating to the cloned repository, the preferred way to run the pipeline is via the root directory with:
 
 	python Autocuration.py --query [Influenza FASTA sequence(s)]
 
@@ -53,9 +54,10 @@ A key step in this pipeline is determining the subtype of the query sequence (Sp
 this is done by BLASTing all incoming query sequences against a database of all sequences making up the
 profiles.  This BLAST database of profile sequences is stored in the `blast` folder, along with the BLAST
 command-line executables for making a BLAST database and running the BLAST job.  This said, whenever the
-profile alignments are updated, the BLAST database MUST be rebuilt.  The other time the BLAST database
-needs to be reconstructed is when new sequences are added to the `flu_profiles_db.fasta` file to make the
-BLAST database more comprehensive. 
+profile alignments are updated, the BLAST database should be rebuilt.  Other times the BLAST database
+need to be reconstructed are when new sequences are added to the `flu_profiles_db.fasta` file to make the
+BLAST database more robust. Although extremely unlikely, it's possible the BLAST database will return
+an uknown hit, and to accomidate for this issue, additional sequences will need to be added to the database. 
 
 ### BLAST DB Upate 1: New Profile Alignments
 
@@ -70,6 +72,20 @@ To make the BLAST database more comprehensive by adding additional Flu sequences
 `flu_profile_db.fasta` file and then run the following within the `blast` directory:
 
 	./makeblastdb -in flu_profiles_db.fasta -dbtype nucl
+
+### Utilizing the BLAST Database Separately
+
+In the case that this BLAST database needs to be used as a separate module, one can do so by importing the
+BLAST object as a python library.  As long as there is a directory path to this repository, one can utilize
+the BLAST database from this repo by executing the following in a python script:
+
+	from Autocuration import Blast
+	flu_strain = Blast(query.fasta).get_strain()
+
+Here, the `Blast` object is imported and then is used to acquire the Species_Segment_Type (for example, A_4_H5)
+of a query Influenza sequence stored in a FASTA file, `query.fasta`.  This Species_Segment_Type annotation is 
+stored in the `flu_strain` variable which can then be used in any downstream purposes, such as Influenza metadata 
+curation.
 
 
 ## Pipeline Performance
